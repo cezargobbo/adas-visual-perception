@@ -14,11 +14,11 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-option(ADASVP_BUILD_TESTS "Build the C++ tests" ON)
+option(ADASVP_BUILD_TESTS "Build the C++ tests" ${PROJECT_IS_TOP_LEVEL})
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-find_package(OpenCV REQUIRED COMPONENTS core imgproc imgcodecs videoio highgui)
+find_package(OpenCV 4 REQUIRED COMPONENTS core imgproc imgcodecs videoio)
 find_package(CUDAToolkit REQUIRED)
 find_package(TensorRT REQUIRED)
 
@@ -41,8 +41,8 @@ target_include_directories(adasvp
   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 target_link_libraries(adasvp
-  PUBLIC  ${OpenCV_LIBS}
-  PRIVATE TensorRT::nvinfer TensorRT::nvonnxparser CUDA::cudart
+  PUBLIC  opencv_core  # the public header only needs cv::Mat / cv::Point2f
+  PRIVATE opencv_imgproc opencv_imgcodecs TensorRT::nvinfer TensorRT::nvonnxparser CUDA::cudart
 )
 target_compile_options(adasvp PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wall -Wextra>)
 # decode_polar mirrors numpy float32 arithmetic: no fused multiply-add
@@ -51,7 +51,7 @@ set_source_files_properties(src/track/kalman_xyah.cpp src/track/byte_tracker.cpp
 set_source_files_properties(src/models/lane_detector.cpp PROPERTIES COMPILE_OPTIONS -ffp-contract=off)
 
 add_executable(adasvp_dump tools/cpp/adasvp_dump.cpp)
-target_link_libraries(adasvp_dump PRIVATE adasvp)
+target_link_libraries(adasvp_dump PRIVATE adasvp opencv_imgcodecs opencv_videoio)
 
 if(ADASVP_BUILD_TESTS)
   enable_testing()

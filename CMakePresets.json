@@ -5,6 +5,7 @@
     {
       "name": "native-release",
       "displayName": "Native Release",
+      "description": "Uses /usr/local/cuda/bin/nvcc. To use another CUDA toolkit set CUDACXX=/path/to/nvcc or pass -DCMAKE_CUDA_COMPILER=/path/to/nvcc",
       "binaryDir": "${sourceDir}/build/native-release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
@@ -15,6 +16,7 @@
     {
       "name": "native-debug",
       "displayName": "Native Debug",
+      "description": "Uses /usr/local/cuda/bin/nvcc. To use another CUDA toolkit set CUDACXX=/path/to/nvcc or pass -DCMAKE_CUDA_COMPILER=/path/to/nvcc",
       "binaryDir": "${sourceDir}/build/native-debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
