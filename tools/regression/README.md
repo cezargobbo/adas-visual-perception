@@ -31,6 +31,11 @@
   `meta.json`, else the reference defaults) within +-0.5 s of the event. Any other mismatch, and any LDW/RLR
   mismatch, fails (non-zero exit). The rule exists because per-frame equality across inference engines (torch vs
   TensorRT) is unattainable at a threshold crossing, while the logic replay tests prove the logic itself is exact.
+- `render_reference.py --trace DIR --frames A:B --out OUT`: renders the Detections (`det_*`), Segmentation
+  (`seg_*`) and Combined (`comb_*`) PNGs of the Python drawing from a trace that has `adas.jsonl` (needs the
+  video under `ADASVP_VIDEOS_DIR`) plus `manifest.json`. The C++ test `Renderer matches the Python drawing`
+  compares the `Renderer` against `outputs/render_ref/STEM_A_B/` (gates: >= 99.5% identical pixels, mean abs
+  diff <= 0.5 per channel); `ADASVP_RENDER_OUT=DIR` makes the test keep its own renders.
 - `make_reference.sh`: regenerates the Python reference alerts.
 
 ```

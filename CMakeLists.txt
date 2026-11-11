@@ -30,6 +30,8 @@ add_library(adasvp SHARED
   src/models/lane_detector.cpp
   src/config.cpp
   src/pipeline.cpp
+  src/render/draw_primitives.cpp
+  src/render/renderer.cpp
   src/adas/ego_lane.cpp
   src/adas/lead_vehicle.cpp
   src/adas/fcw.cpp
