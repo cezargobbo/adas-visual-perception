@@ -14,3 +14,4 @@ __pycache__/
 *.safetensors
 models/*
 !models/README.md
+CMakeUserPresets.json

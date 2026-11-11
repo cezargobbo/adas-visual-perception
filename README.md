@@ -41,8 +41,22 @@ configure needs network access.
     cmake --build build/native-release -j
     ctest --test-dir build/native-release --output-on-failure
 
-The preset uses `/usr/local/cuda/bin/nvcc`. For another CUDA toolkit set `CUDACXX=/path/to/nvcc` before
-configuring (or pass `-DCMAKE_CUDA_COMPILER=/path/to/nvcc`). Tests that need models or videos are skipped
+The preset uses `/usr/local/cuda/bin/nvcc`. For another CUDA toolkit override it on the command line
+(the `CUDACXX` environment variable has no effect because the preset sets the cache variable):
+
+    cmake --preset native-release -DCMAKE_CUDA_COMPILER=/path/to/nvcc
+
+or keep it in an untracked `CMakeUserPresets.json` that inherits the preset:
+
+    {
+      "version": 3,
+      "configurePresets": [{
+        "name": "mine", "inherits": "native-release",
+        "cacheVariables": { "CMAKE_CUDA_COMPILER": "/path/to/nvcc" }
+      }]
+    }
+
+Tests that need models or videos are skipped
 unless `models/` is populated and `ADASVP_VIDEOS_DIR` points to your clips. TensorRT engines are built on
 first use (minutes) and cached in `${XDG_CACHE_HOME:-$HOME/.cache}/adasvp/engines`. Use `-DADASVP_BUILD_TESTS=OFF`
 to skip the tests.
