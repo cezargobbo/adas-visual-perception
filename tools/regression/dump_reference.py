@@ -20,7 +20,12 @@ Output layout (DIR):
                           carry a track id (Kalman-smoothed xyxy, id, score, cls).
                  lanes  = frame-pixel polylines (top -> bottom) from PolarLaneDetector.
   seg/NNNNNN.png uint8 class-id map (frame resolution), every --seg-every frames.
-  meta.json      video, profile, resolution, fps, parameters, library versions.
+  adas.jsonl     only with --adas: one line per frame with the inputs and outputs of the ADAS
+                 classes (EgoLaneTracker, LeadVehicleEstimator, FCWMonitor, LDWMonitor,
+                 TrafficLightTracker, RLRMonitor), driven exactly like the reference main loop with
+                 the reference defaults. Schema: tools/regression/README.md.
+  meta.json      video, profile, resolution, fps, parameters, library versions (plus an "adas"
+                 object with the frame windows derived from fps when --adas is given).
 """
 from __future__ import annotations
 
@@ -36,6 +41,52 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "reference" / "python"))
 
+# Defaults of the reference argparse (dashcam_vision.py main()).
+ADAS_DEFAULTS = dict(hfov=75.0, cam_height=1.5, horizon=0.59, corridor_bottom=0.12, corridor_top=0.02,
+                     lanes_hold=2.5, fcw_ttc=2.7, fcw_ttc_critical=1.5, ldw_margin=0.25,
+                     ldw_car_width=1.8, rlr_zone=(0.25, 0.75))
+
+
+def jsonable(v):
+    """numpy -> lists / Python scalars, None -> null, tuples -> lists. Non-finite floats become the
+    strings "inf" / "-inf" / "nan" (plain JSON has no literal for them)."""
+    if v is None or isinstance(v, (bool, str)):
+        return v
+    if isinstance(v, (np.bool_,)):
+        return bool(v)
+    if isinstance(v, (int, np.integer)):
+        return int(v)
+    if isinstance(v, (float, np.floating)):
+        f = float(v)
+        if f != f:
+            return "nan"
+        return f if abs(f) != float("inf") else ("inf" if f > 0 else "-inf")
+    if isinstance(v, np.ndarray):
+        return jsonable(v.tolist())
+    if isinstance(v, dict):
+        return {str(k): jsonable(x) for k, x in v.items()}
+    if isinstance(v, (list, tuple)):
+        return [jsonable(x) for x in v]
+    raise TypeError(f"cannot serialise {type(v)}")
+
+
+def ego_state(trk):
+    """Public + internal state of the EgoLaneTracker after update()."""
+    return {"xl": trk.xl, "xr": trk.xr, "state": trk.state, "available": trk.available,
+            "fade": trk.fade, "since": trk.since, "obs_l": trk.obs_l, "obs_r": trk.obs_r,
+            "glitch": trk.glitch, "free": dict(trk.free), "raw_l": trk.raw_l, "raw_r": trk.raw_r,
+            "wprof": trk.wprof, "pend": {k: [v[0], v[1]] for k, v in trk.pend.items()}}
+
+
+def tl_tracks_state(trk):
+    """TrafficLightTracker tracks: scalars + the last history entry (the history itself, up to 120
+    entries, is not dumped; the tracker only reads the last 6 entries and its length)."""
+    out = []
+    for tr in trk.tracks.values():
+        out.append({"id": tr["id"], "lost": tr["lost"], "done": tr["done"], "n_hist": len(tr["hist"]),
+                    "last": tr["hist"][-1]})
+    return out
+
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -48,6 +99,8 @@ def main() -> None:
     ap.add_argument("--conf", type=float, default=0.30)
     ap.add_argument("--lanes-thr", type=float, default=None)
     ap.add_argument("--tracker", default="bytetrack.yaml")
+    ap.add_argument("--adas", action="store_true",
+                    help="also write adas.jsonl (inputs/outputs of the ADAS logic classes per frame)")
     args = ap.parse_args()
 
     import torch
@@ -94,6 +147,35 @@ def main() -> None:
     out = Path(args.out)
     (out / "seg").mkdir(parents=True, exist_ok=True)
     seg_written = 0
+
+    adas_f = None
+    adas_meta = None
+    if args.adas:
+        A = ADAS_DEFAULTS
+        lane_trk = dv.EgoLaneTracker(W, H, fps, A["cam_height"], A["horizon"], A["lanes_hold"])
+        fcw_mon = dv.FCWMonitor(W, H, fps, A["fcw_ttc"], A["fcw_ttc_critical"])
+        ldw_mon = dv.LDWMonitor(W, H, fps, lane_trk, A["ldw_car_width"], A["ldw_margin"], horizon_frac=A["horizon"])
+        rlr_mon = dv.RLRMonitor(W, H, fps, zone=tuple(A["rlr_zone"]))
+        lead_est = dv.LeadVehicleEstimator(W, H, A["hfov"], A["cam_height"], A["horizon"],
+                                           A["corridor_bottom"], A["corridor_top"], hold_frames=int(fps * 0.3))
+        # Spy on the TrafficLightTracker to also record the tracks closed (lost too long) each frame.
+        tl_closed = []
+        orig_tl_update = rlr_mon.trk.update
+
+        def tl_update_spy(t, dets):
+            closed = orig_tl_update(t, dets)
+            tl_closed[:] = [c["id"] for c in closed]
+            return closed
+
+        rlr_mon.trk.update = tl_update_spy
+        adas_meta = {"fps_used": fps, "defaults": {k: list(v) if isinstance(v, tuple) else v for k, v in A.items()},
+                     "ego_hold_frames": lane_trk.hold_frames, "ego_persist": lane_trk.persist,
+                     "fcw_on_n": fcw_mon.on_n, "fcw_off_n": fcw_mon.off_n,
+                     "ldw_on_n": ldw_mon.on_n, "ldw_off_n": ldw_mon.off_n, "ldw_row": int(ldw_mon.row),
+                     "lead_hold_frames": lead_est.hold_frames, "tl_max_lost": rlr_mon.trk.max_lost,
+                     "ego_ys": lane_trk.ys, "ego_t_row": lane_trk.t_row,
+                     "ego_wmin": lane_trk.wmin, "ego_wmax": lane_trk.wmax, "ego_gate": lane_trk.gate}
+        adas_f = open(out / "adas.jsonl", "w")
     with open(out / "frames.jsonl", "w") as jf:
         for i in range(n_frames):
             ok, frame = cap.read()
@@ -113,6 +195,35 @@ def main() -> None:
                 for r in res.boxes.data.cpu().numpy():
                     tracks.append([float(r[0]), float(r[1]), float(r[2]), float(r[3]),
                                    int(r[4]), float(r[5]), int(r[6])])
+            if args.adas:
+                # Same glue as the reference main loop (dashcam_vision.py, "ADAS alerts" block).
+                t_s = (start_f + i) / fps
+                lane_trk.update(lane_list)
+                ego = ego_state(lane_trk)
+                ldets = []
+                if res.boxes is not None and len(res.boxes):
+                    xyxy = res.boxes.xyxy.cpu().numpy()
+                    cls = res.boxes.cls.cpu().numpy().astype(int)
+                    conf = res.boxes.conf.cpu().numpy()
+                    ids = res.boxes.id.cpu().numpy().astype(int) if res.boxes.id is not None else [None] * len(cls)
+                    ldets = [(ids[k], cls[k], xyxy[k], conf[k]) for k in range(len(cls))]
+                lead_in = [(t, c, b) for t, c, b, _ in ldets if t is not None]
+                lead = lead_est.update(lead_in, lane_trk)
+                lead_f = lead
+                if lead is not None and lane_trk.available and not lane_trk.contains(lead[2], margin=0.0):
+                    lead_f = None
+                fcw = fcw_mon.update(t_s, lead_f)
+                ldw = ldw_mon.update(t_s)
+                tl_boxes = [(b, c) for _, cl, b, c in ldets if cl == 9]
+                tl_in = [{"box": b, "score": c, "state": dv.traffic_light_state(frame, b)} for b, c in tl_boxes]
+                rlr = rlr_mon.update(t_s, frame, tl_boxes)
+                arec = {"i": i, "t": t_s, "lanes_in": lane_list, "ego": ego,
+                        "lead_in": lead_in, "lead": lead, "fcw_lead_in": lead_f, "fcw": fcw,
+                        "ldw": dict(ldw, mon={"fail": ldw_mon.fail, "m": ldw_mon.m, "stats": dict(ldw_mon.stats),
+                                              "last_v": ldw_mon.last_v, "n_cross": ldw_mon.n_cross}),
+                        "tl_in": tl_in, "tl_tracks": tl_tracks_state(rlr_mon.trk), "tl_closed": list(tl_closed),
+                        "rlr": rlr}
+                adas_f.write(json.dumps(jsonable(arec), separators=(",", ":")) + "\n")
             if i % args.seg_every == 0:
                 m = seg(frame).cpu().numpy()
                 assert m.dtype == np.uint8 and m.shape == (H, W)
@@ -126,6 +237,8 @@ def main() -> None:
                 print(f"[{i + 1}/{n_frames}]", flush=True)
     BYTETracker.update = orig_update
     cap.release()
+    if adas_f:
+        adas_f.close()
 
     meta = {
         "video": os.path.basename(args.video), "profile": args.profile,
@@ -140,6 +253,8 @@ def main() -> None:
                      "ultralytics": ultralytics.__version__, "opencv": cv2.__version__,
                      "numpy": np.__version__},
     }
+    if adas_meta is not None:
+        meta["adas"] = jsonable(adas_meta)
     with open(out / "meta.json", "w") as f:
         json.dump(meta, f, indent=2)
     print(f"[done] {n_frames} frames -> {out}")

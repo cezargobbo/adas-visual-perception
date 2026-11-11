@@ -2,6 +2,11 @@
 
 - `dump_reference.py`: dumps per-frame results (`frames.jsonl`, `seg/NNNNNN.png`, `meta.json`) of the Python
   reference pipeline.
+- `dump_reference.py ... --adas` also writes `adas.jsonl` (schema below) and an `adas` object in `meta.json`;
+  `frames.jsonl` and `seg/` are unchanged by the flag.
+- `make_tl_fixtures.py`: cuts up to 60 traffic-light crops (class 9 boxes) out of the published test videos
+  into `tests/fixtures/tl_state_NNN.png`, with the Python `traffic_light_state` result in
+  `tests/fixtures/tl_state_expected.json`.
 - `adasvp_dump` (built from `tools/cpp/adasvp_dump.cpp`): writes the same format from the C++ `Pipeline`.
   `--no-write` skips all output (used for the fps numbers below).
 - `compare_dumps.py REF_DIR CPP_DIR`: prints and gates one video (exit 0 only if every gate passes):
@@ -42,3 +47,30 @@ C++ = `adasvp_dump --no-write` (seg every 30 frames). Python timings are noisy (
 | accurate | red_crop_11_30fps | 750 | 10.9 | 11.6 |
 | accurate | red_crop_12_30fps | 660 | 11.1 | 11.6 |
 | accurate | red_crop_13_30fps | 751 | 11.1 | 12.1 |
+
+## adas.jsonl schema
+
+One JSON object per frame (same order as `frames.jsonl`), produced by driving the reference classes with the
+reference defaults exactly like the main loop of `dashcam_vision.py` (lane update, then detection/track, lead,
+FCW, LDW, RLR). numpy arrays are lists, `None` is `null`, floats keep full precision (shortest round-trip
+repr); non-finite floats are the strings `"inf"`, `"-inf"`, `"nan"`. Boxes are `[x1,y1,x2,y2]`.
+
+| key | content |
+|---|---|
+| `i`, `t` | frame index relative to `--start`; `t = (start_frame + i) / fps` (the `t_s` of the loop) |
+| `lanes_in` | list passed to `EgoLaneTracker.update`: polylines `[[x,y],...]` |
+| `ego` | tracker state after the update: `xl`, `xr` (40 values per row of `ys`, or null), `state` (`none`/`detected`/`partial`/`estimated`), `available`, `fade`, `since`, `obs_l`, `obs_r`, `glitch`, `free` `{l,r}`, `raw_l`, `raw_r` (arrays or null), `wprof`, `pend` `{l,r}` = `[array-or-null, count]` |
+| `lead_in` | list `[track_id, cls, box]` passed to `LeadVehicleEstimator.update` (tracks with an id only) |
+| `lead` | `[track_id, cls, box, dist_m]` or null |
+| `fcw_lead_in` | the `lead_f` passed to `FCWMonitor.update` (same layout as `lead`; null when dropped for being outside the ego lane) |
+| `fcw` | returned dict: `ttc`, `active`, `level`, `event` |
+| `ldw` | returned dict `armed`, `side`, `event`, `d`, `v`, `tlc`, plus `mon`: `fail` (disarm reason or null), `m` (`y0`,`wres`,`resl`,`resr`,`sll`,`slr` as set by the last full check), `stats` (cumulative frames per reason, key `armed` when armed), `last_v`, `n_cross` |
+| `tl_in` | one entry per class-9 box passed to `RLRMonitor.update`: `box`, `score`, `state` (`traffic_light_state` of that box on this frame, computed for every box; RLR itself only uses it when `box[1] > 0.01*H`) |
+| `tl_tracks` | `TrafficLightTracker.tracks` after the update: `id`, `lost`, `done`, `n_hist`, `last` = last history entry `{t, box, conf, state}` (the full history is not dumped) |
+| `tl_closed` | ids of the tracks closed (lost too long) by this frame's update |
+| `rlr` | returned dict: `event` (null or `{id, cx, red_for, growth, box}`) |
+
+`meta.json` gains `adas`: `fps_used` (the fps from the video container, used to size every frame window),
+the defaults used, the derived windows (`ego_hold_frames`, `ego_persist`, `fcw_on_n`, `fcw_off_n`, `ldw_on_n`,
+`ldw_off_n`, `ldw_row`, `lead_hold_frames`, `tl_max_lost`) and the tracker geometry (`ego_ys`, `ego_t_row`,
+`ego_wmin`, `ego_wmax`, `ego_gate`).
