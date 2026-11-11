@@ -28,6 +28,9 @@ add_library(adasvp SHARED
   src/models/yolo_detector.cpp
   src/models/segmenter.cpp
   src/models/lane_detector.cpp
+  src/track/kalman_xyah.cpp
+  src/track/assignment.cpp
+  src/track/byte_tracker.cpp
   src/postprocess/seg_kernels.cu
   src/preprocess/kernels.cu
 )
@@ -41,6 +44,8 @@ target_link_libraries(adasvp
 )
 target_compile_options(adasvp PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wall -Wextra>)
 # decode_polar mirrors numpy float32 arithmetic: no fused multiply-add
+# the tracker mirrors numpy float32/float64 arithmetic: no fused multiply-add
+set_source_files_properties(src/track/kalman_xyah.cpp src/track/byte_tracker.cpp PROPERTIES COMPILE_OPTIONS -ffp-contract=off)
 set_source_files_properties(src/models/lane_detector.cpp PROPERTIES COMPILE_OPTIONS -ffp-contract=off)
 
 if(ADASVP_BUILD_TESTS)
