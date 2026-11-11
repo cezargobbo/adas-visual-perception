@@ -41,7 +41,7 @@ INTERSECTION_RANGE_S = (58.0, 62.0)
 N_RESAMPLE = 72
 
 
-def make_runner(backend: str, model: str = "polar"):
+def make_runner(backend: str, model: str = "polar", fp16: bool = True):
     """Return a callable image(1,3,320,800) fp32 -> (pts, endp, o2o) numpy arrays."""
     if backend == "ort":
         import onnxruntime as ort
@@ -61,7 +61,7 @@ def make_runner(backend: str, model: str = "polar"):
             "--backend trt needs tools/export/trt_runner.py, which does not exist yet "
             "(it is created in a later task). Use --backend ort for now."
         )
-    return trt_runner.load_runner(model)
+    return trt_runner.load_runner(model, fp16=fp16)
 
 
 def preprocess(frame_bgr: np.ndarray) -> np.ndarray:
@@ -146,11 +146,13 @@ def main() -> int:
                     help=f"total frames incl. {INTERSECTION_FRAMES} intersection frames")
     ap.add_argument("--videos-dir", default=os.environ.get(frames_mod.ENV_VAR),
                     help=f"directory with the test videos (or set ${frames_mod.ENV_VAR})")
+    ap.add_argument("--precision", choices=["fp16", "fp32"], default="fp16",
+                    help="TensorRT engine precision (--backend trt only)")
     args = ap.parse_args()
     if not args.videos_dir:
         ap.error(f"--videos-dir is required (or set ${frames_mod.ENV_VAR})")
 
-    runner = make_runner(args.backend)
+    runner = make_runner(args.backend, fp16=args.precision == "fp16")
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     det = lp.PolarLaneDetector(device=dev, fp16=False, verbose=False)
 

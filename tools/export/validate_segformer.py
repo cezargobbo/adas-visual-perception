@@ -30,7 +30,7 @@ MEAN = (0.485, 0.456, 0.406)
 STD = (0.229, 0.224, 0.225)
 
 
-def make_runner(backend: str, model: str):
+def make_runner(backend: str, model: str, fp16: bool = True):
     if backend == "ort":
         import onnxruntime as ort
 
@@ -46,7 +46,7 @@ def make_runner(backend: str, model: str):
             "--backend trt needs tools/export/trt_runner.py, which does not exist yet "
             "(it is created in a later task). Use --backend ort for now."
         )
-    return trt_runner.load_runner(model)
+    return trt_runner.load_runner(model, fp16=fp16)
 
 
 def preprocess(frame_bgr: np.ndarray, w: int, h: int) -> np.ndarray:
@@ -65,11 +65,13 @@ def main() -> int:
     ap.add_argument("--frames", type=int, default=20, help="total frames, spread over the 3 videos")
     ap.add_argument("--videos-dir", default=os.environ.get(frames_mod.ENV_VAR),
                     help=f"directory with the test videos (or set ${frames_mod.ENV_VAR})")
+    ap.add_argument("--precision", choices=["fp16", "fp32"], default="fp16",
+                    help="TensorRT engine precision (--backend trt only)")
     args = ap.parse_args()
     if not args.videos_dir:
         ap.error(f"--videos-dir is required (or set ${frames_mod.ENV_VAR})")
 
-    runner = make_runner(args.backend, args.model)
+    runner = make_runner(args.backend, args.model, fp16=args.precision == "fp16")
     from dashcam_vision import Segmenter
 
     d, w, h = PROFILES[args.model]

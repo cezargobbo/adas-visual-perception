@@ -32,7 +32,7 @@ TRT_POOLED_RP = 0.97  # TRT fp16 vs fp32 reference, pooled over resolutions
 TRT_EACH_RP = 0.95  # ... and every resolution
 
 
-def make_runner(backend: str, model: str):
+def make_runner(backend: str, model: str, fp16: bool = True):
     if backend == "ort":
         import onnxruntime as ort
 
@@ -49,7 +49,7 @@ def make_runner(backend: str, model: str):
             "--backend trt needs tools/export/trt_runner.py, which does not exist yet "
             "(it is created in a later task). Use --backend ort for now."
         )
-    return trt_runner.load_runner(model)
+    return trt_runner.load_runner(model, fp16=fp16)
 
 
 def decode(out: np.ndarray, scale: float, pad: tuple[float, float], shape) -> np.ndarray:
@@ -99,11 +99,13 @@ def main() -> int:
     ap.add_argument("--imgsz", type=int, nargs="+", default=[960, 1280])
     ap.add_argument("--videos-dir", default=os.environ.get(frames_mod.ENV_VAR),
                     help=f"directory with the test videos (or set ${frames_mod.ENV_VAR})")
+    ap.add_argument("--precision", choices=["fp16", "fp32"], default="fp16",
+                    help="TensorRT engine precision (--backend trt only)")
     args = ap.parse_args()
     if not args.videos_dir:
         ap.error(f"--videos-dir is required (or set ${frames_mod.ENV_VAR})")
 
-    runner = make_runner(args.backend, args.model)
+    runner = make_runner(args.backend, args.model, fp16=args.precision == "fp16")
     from ultralytics import YOLO
 
     det = YOLO(str(ROOT / "models" / f"yolo26{args.model}.pt"))
