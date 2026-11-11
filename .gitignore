@@ -1,0 +1,16 @@
+.venv/
+build/
+outputs/
+cache/
+__pycache__/
+*.mp4
+*.avi
+*.gif.tmp
+*.pt
+*.pth
+*.onnx
+*.engine
+*.plan
+*.safetensors
+models/*
+!models/README.md
