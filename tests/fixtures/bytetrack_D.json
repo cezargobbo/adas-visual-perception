@@ -1,0 +1,26 @@
+{
+ "params": {
+  "tracker_type": "bytetrack",
+  "track_high_thresh": 0.25,
+  "track_low_thresh": 0.1,
+  "new_track_thresh": 0.25,
+  "track_buffer": 30,
+  "match_thresh": 0.8,
+  "fuse_score": true
+ },
+ "image_shape_hw": [
+  1080,
+  1920
+ ],
+ "frames": 70,
+ "unique_ids": 5,
+ "path_counts": {
+  "dup_calls_with_pairs": 2,
+  "dup_drop_lost_tp_gt_tq": 1,
+  "dup_drop_tracked_tp_le_tq": 1,
+  "removed_unconfirmed": 2,
+  "score_eq_0_25_in_high": 1,
+  "score_eq_0_1_excluded": 1
+ },
+ "note": "same layout as bytetrack_{A,B,C}_*. D exercises remove_duplicate_stracks in both directions (dup_drop_lost_tp_gt_tq: lost track dropped; dup_drop_tracked_tp_le_tq: tracked track dropped), removal of unmatched unconfirmed tracks, and detection scores exactly float32(0.25) (kept, >=) and float32(0.1) (dropped, >)."
+}

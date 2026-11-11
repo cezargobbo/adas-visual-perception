@@ -167,7 +167,7 @@ void run_sequence(const std::string& name, std::vector<std::vector<Object>>* all
 }  // namespace
 
 TEST_CASE("ByteTracker matches Ultralytics") {
-  for (const char* n : {"A", "B", "C"}) run_sequence(n);
+  for (const char* n : {"A", "B", "C", "D"}) run_sequence(n);
 }
 
 TEST_CASE("ByteTracker empty frames and lost-track expiry") {
@@ -195,4 +195,27 @@ TEST_CASE("ByteTracker empty frames and lost-track expiry") {
   REQUIRE(o.size() == 1);
   REQUIRE(o[0].track_id != first);
   REQUIRE(o[0].track_id == 2);
+}
+
+TEST_CASE("ByteTracker lost-track limit ignores frame_rate") {
+  // Ultralytics: a lost track is marked Removed when frame_id - end_frame > track_buffer (30), but it only leaves
+  // lost_stracks in the NEXT frame's merge (sub_stracks(lost, removed) runs before this frame's removals are
+  // appended), so it can still be re-found one frame later. Measured with the real BYTETracker (track last tracked
+  // at frame 3): 29/30/31 empty frames keep id 1, 32 gives a new id. frame_rate 60 must not change that.
+  const Object d{{100, 100, 200, 300}, 0, 0.9f, -1};
+  for (int gap : {30, 31, 32}) {
+    ByteTracker t(TrackerParams{}, 60.0);
+    for (int f = 0; f < 3; ++f) REQUIRE(t.update({d}).size() == 1);
+    for (int f = 0; f < gap; ++f) REQUIRE(t.update({}).empty());
+    auto o = t.update({d});
+    if (gap <= 31) {
+      REQUIRE(o.size() == 1);
+      REQUIRE(o[0].track_id == 1);
+    } else {
+      REQUIRE(o.empty());  // new unconfirmed track, hidden on its first frame
+      o = t.update({d});
+      REQUIRE(o.size() == 1);
+      REQUIRE(o[0].track_id == 2);
+    }
+  }
 }

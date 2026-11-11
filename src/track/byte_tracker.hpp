@@ -17,7 +17,8 @@ struct TrackerParams {
 
 class ByteTracker {
  public:
-  // Lost tracks are dropped after max_time_lost = int(frame_rate / 30 * buffer) frames.
+  // frame_rate is unused (kept for API stability): like Ultralytics 8.4.208 (max_frames_lost = args.track_buffer),
+  // a lost track is dropped when frame_id - last_tracked_frame > params.buffer, whatever the video fps.
   ByteTracker(TrackerParams params, double frame_rate);
   ~ByteTracker();
   ByteTracker(ByteTracker&&) noexcept;

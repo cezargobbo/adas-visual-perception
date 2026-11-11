@@ -70,10 +70,7 @@ using SP = std::shared_ptr<STrack>;
 // iou_distance: 1 - bbox_ioa(iou=True) in float32
 std::vector<std::vector<float>> iou_distance(const std::vector<SP>& a, const std::vector<SP>& b) {
   std::vector<std::vector<float>> out(a.size(), std::vector<float>(b.size(), 0.0f));
-  if (a.empty() || b.empty()) {
-    for (auto& r : out) std::fill(r.begin(), r.end(), 1.0f - 0.0f);  // 1 - zeros (never read when empty)
-    return out;
-  }
+  if (a.empty() || b.empty()) return out;  // 0xN / Nx0: nothing to compare
   std::vector<std::array<float, 4>> A(a.size()), B(b.size());
   for (size_t i = 0; i < a.size(); ++i) a[i]->xyxy_f32(A[i].data());
   for (size_t j = 0; j < b.size(); ++j) b[j]->xyxy_f32(B[j].data());
@@ -335,7 +332,8 @@ struct ByteTracker::Impl {
 
 ByteTracker::ByteTracker(TrackerParams params, double frame_rate) : impl_(std::make_unique<Impl>()) {
   impl_->p = params;
-  impl_->max_time_lost = static_cast<int>(frame_rate / 30.0 * params.buffer);
+  (void)frame_rate;  // Ultralytics 8.4.208 ignores the frame rate: max_frames_lost = args.track_buffer
+  impl_->max_time_lost = params.buffer;
 }
 ByteTracker::~ByteTracker() = default;
 ByteTracker::ByteTracker(ByteTracker&&) noexcept = default;
