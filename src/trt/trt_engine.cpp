@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
@@ -13,8 +14,10 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <random>
 #include <sstream>
 #include <stdexcept>
+#include <thread>
 
 #include "cuda/cuda_check.hpp"
 
@@ -190,21 +193,37 @@ std::vector<char> buildSerialized(const std::string& onnx_path, Precision p,
   return std::vector<char>(d, d + blob->size());
 }
 
-void writeAtomic(const fs::path& dst, const std::vector<char>& data) {
+// Unique per writer (pid + thread id + random), so concurrent builders never share a temp file.
+std::string uniqueSuffix() {
+  static std::atomic<unsigned long> counter{0};
+  std::random_device rd;
+  std::ostringstream o;
+  o << ".tmp." << ::getpid() << "." << std::hash<std::thread::id>{}(std::this_thread::get_id()) << "."
+    << std::hex << rd() << rd() << "." << counter++;
+  return o.str();
+}
+
+// Best effort: the cache is an optimization. Returns false (after a warning) when the directory is not
+// writable or the write fails; the caller keeps using the in-memory engine.
+bool writeAtomic(const fs::path& dst, const std::vector<char>& data) {
   fs::path tmp = dst;
-  tmp += ".tmp." + std::to_string(static_cast<long>(::getpid()));
+  tmp += uniqueSuffix();
   try {
     {
       std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
+      if (!f) throw std::runtime_error("cannot open " + tmp.string());
       f.write(data.data(), static_cast<std::streamsize>(data.size()));
       f.flush();
-      if (!f) throw std::runtime_error("failed to write engine cache " + tmp.string());
+      if (!f) throw std::runtime_error("failed to write " + tmp.string());
     }
     fs::rename(tmp, dst);  // atomic on the same filesystem
-  } catch (...) {
+    return true;
+  } catch (const std::exception& e) {
     std::error_code ec;
     fs::remove(tmp, ec);
-    throw;
+    std::cerr << "[adasvp] warning: engine cache not written (" << e.what() << "); continuing without cache"
+              << std::endl;
+    return false;
   }
 }
 
@@ -233,13 +252,18 @@ TrtEngine::TrtEngine(const std::string& onnx_path, Precision p, const std::strin
                      std::optional<ShapeProfile> profile)
     : impl_(std::make_unique<Impl>()) {
   const fs::path dir = cache_dir.empty() ? fs::path(defaultCacheDir()) : fs::path(cache_dir);
-  fs::create_directories(dir);
+  {
+    std::error_code ec;
+    fs::create_directories(dir, ec);
+    if (ec) std::cerr << "[adasvp] warning: cannot create engine cache dir " << dir << ": " << ec.message() << std::endl;
+  }
   const fs::path file = dir / (fs::path(onnx_path).stem().string() + "_" + cacheKey(onnx_path, p, profile) + ".engine");
 
   impl_->runtime.reset(nvinfer1::createInferRuntime(logger()));
   if (!impl_->runtime) throw std::runtime_error("failed to create TensorRT runtime");
 
-  if (fs::exists(file)) {
+  std::error_code exists_ec;
+  if (fs::exists(file, exists_ec)) {
     auto blob = readFile(file);
     if (!blob.empty()) impl_->engine.reset(impl_->runtime->deserializeCudaEngine(blob.data(), blob.size()));
     if (!impl_->engine) {
