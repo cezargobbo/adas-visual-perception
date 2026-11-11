@@ -8,7 +8,8 @@
   into `tests/fixtures/tl_state_NNN.png`, with the Python `traffic_light_state` result in
   `tests/fixtures/tl_state_expected.json`.
 - `adasvp_dump` (built from `tools/cpp/adasvp_dump.cpp`): writes the same format from the C++ `Pipeline`.
-  `--no-write` skips all output (used for the fps numbers below).
+  `--no-write` skips all output (used for the fps numbers below). `--adas` also writes `adas.jsonl` (same schema as
+  below, outputs only: `i`, `t`, `ego`, `lead`, `fcw`, `ldw` (+`mon`), `rlr`).
 - `compare_dumps.py REF_DIR CPP_DIR`: prints and gates one video (exit 0 only if every gate passes):
   - dets: recall and precision >= 0.97 (IoU >= 0.9, same class);
   - tracks: id consistency >= 0.95 (majority C++ id -> Python id mapping over IoU-matched tracks);
@@ -21,6 +22,9 @@
   - seg: >= 99% equal pixels in every PNG.
   - Gates cannot pass on an empty comparison: the reference must contain seg PNGs, a reference with lanes must
     produce at least one matched lane pair, and more than 5 mismatched pairs (mean |dx| > 20) per video fail.
+- `compare_dumps.py REF_DIR CPP_DIR --adas` additionally compares `adas.jsonl`: every alert event (type + side/level)
+  must have a partner in the other dump within +-0.5 s (gate); `ego.state` agreement (>= 97%) and lead-id agreement
+  under the majority id mapping (>= 95%) are printed as diagnostics.
 - `make_reference.sh`: regenerates the Python reference alerts.
 
 ```

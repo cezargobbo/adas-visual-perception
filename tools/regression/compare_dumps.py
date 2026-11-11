@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Compare a C++ dump (adasvp_dump) against a Python reference dump (dump_reference.py).
 
-Usage: compare_dumps.py REF_DIR CPP_DIR
+Usage: compare_dumps.py REF_DIR CPP_DIR [--adas]
 
 Gates (per video; exit code 0 only if all pass):
   dets   recall and precision >= 0.97 (greedy IoU >= 0.9, same class)
@@ -11,6 +11,11 @@ Gates (per video; exit code 0 only if all pass):
          mean |dx| > 20 px are greedy cross-lane mismatches: reported separately, excluded from the
          point-count gate. Point count over the true pairs: >= 99.9% with diff <= 1 and max diff <= 2.
   seg    >= 99% equal pixels in every PNG; the reference must contain at least one PNG
+With --adas (both dirs hold adas.jsonl, written by dump_reference.py --adas / adasvp_dump --adas) the alert
+events are also compared. Gate: every event (type + side/level: FCW warning|critical, LDW left|right, RLR red)
+of one dump has a partner of the other within +-0.5 s (one-to-one, greedy by time difference). Diagnostics, not
+gates: ego.state equal on >= 97% of the frames; lead id equal (under the majority C++ -> Python id mapping,
+"no lead" in both counts as equal) on >= 95% of the frames.
 Gates never pass on an empty comparison: a reference with lanes but no matched lane pair fails the lane
 gate, a reference without seg PNGs fails the seg gate, and more than MAX_MISMATCHED (5) cross-lane
 mismatched pairs per video fail the lane gate.
@@ -139,10 +144,82 @@ def compare(ref_dir: Path, cpp_dir: Path) -> dict:
     return res
 
 
+EVENT_TOL_S = 0.5
+
+
+def load_adas(d: Path):
+    return [json.loads(l) for l in open(d / "adas.jsonl")]
+
+
+def events_of(rows):
+    ev = []
+    for r in rows:
+        if r["fcw"]["event"]:
+            ev.append(("FCW", r["fcw"]["event"], r["t"], r["i"]))
+        if r["ldw"]["event"]:
+            ev.append(("LDW", r["ldw"]["event"], r["t"], r["i"]))
+        if r["rlr"]["event"]:
+            ev.append(("RLR", "red", r["t"], r["i"]))
+    return ev
+
+
+def match_events(ref_ev, cpp_ev, tol=EVENT_TOL_S):
+    """Greedy one-to-one matching by |dt| among events with the same (type, side)."""
+    cand = sorted((abs(a[2] - b[2]), i, j) for i, a in enumerate(ref_ev) for j, b in enumerate(cpp_ev)
+                  if a[:2] == b[:2] and abs(a[2] - b[2]) <= tol)
+    used_r, used_c, pairs = set(), set(), []
+    for dt, i, j in cand:
+        if i in used_r or j in used_c:
+            continue
+        used_r.add(i); used_c.add(j); pairs.append((i, j, dt))
+    return pairs, [i for i in range(len(ref_ev)) if i not in used_r], [j for j in range(len(cpp_ev)) if j not in used_c]
+
+
+def compare_adas(ref_dir: Path, cpp_dir: Path) -> dict:
+    ref, cpp = load_adas(ref_dir), load_adas(cpp_dir)
+    n = min(len(ref), len(cpp))
+    res = {"frames": f"{len(ref)}/{len(cpp)}"}
+    ref_ev, cpp_ev = events_of(ref), events_of(cpp)
+    pairs, miss, extra = match_events(ref_ev, cpp_ev)
+    res["ref_events"], res["cpp_events"] = ref_ev, cpp_ev
+    res["pairs"], res["missing"], res["extra"] = pairs, [ref_ev[i] for i in miss], [cpp_ev[j] for j in extra]
+    res["state_agree"] = sum(ref[k]["ego"]["state"] == cpp[k]["ego"]["state"] for k in range(n)) / max(n, 1)
+    by = defaultdict(Counter)
+    for k in range(n):
+        a, b = ref[k]["lead"], cpp[k]["lead"]
+        if a is not None and b is not None:
+            by[int(b[0])][int(a[0])] += 1
+    maj = {ci: cnt.most_common(1)[0][0] for ci, cnt in by.items()}
+    agree = 0
+    for k in range(n):
+        a, b = ref[k]["lead"], cpp[k]["lead"]
+        agree += (a is None and b is None) or (a is not None and b is not None and maj.get(int(b[0])) == int(a[0]))
+    res["lead_agree"] = agree / max(n, 1)
+    res["pass"] = not miss and not extra and len(ref) == len(cpp)
+    return res
+
+
+def print_adas(r: dict) -> None:
+    fmt = lambda e: f"{e[0]} {e[1]} @ frame {e[3]} (t={e[2]:.2f}s)"  # noqa: E731
+    print(f"adas frames ref/cpp {r['frames']}")
+    print(f"adas events         ref {len(r['ref_events'])}, cpp {len(r['cpp_events'])}, matched {len(r['pairs'])} "
+          f"(+-{EVENT_TOL_S} s) [{'OK' if r['pass'] else 'FAIL'}]")
+    for i, j, dt in r["pairs"]:
+        a, b = r["ref_events"][i], r["cpp_events"][j]
+        print(f"    {a[0]} {a[1]}: ref frame {a[3]} / cpp frame {b[3]} (dt {dt:.3f} s)")
+    for e in r["missing"]:
+        print(f"    MISSING in cpp: {fmt(e)}")
+    for e in r["extra"]:
+        print(f"    EXTRA in cpp:   {fmt(e)}")
+    print(f"adas ego.state eq   {r['state_agree']:.4f}  (diagnostic >=0.97) [{'ok' if r['state_agree'] >= 0.97 else 'low'}]")
+    print(f"adas lead id eq     {r['lead_agree']:.4f}  (diagnostic >=0.95) [{'ok' if r['lead_agree'] >= 0.95 else 'low'}]")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("ref_dir")
     ap.add_argument("cpp_dir")
+    ap.add_argument("--adas", action="store_true", help="also compare adas.jsonl (alert events, diagnostics)")
     a = ap.parse_args()
     r = compare(Path(a.ref_dir), Path(a.cpp_dir))
     print(f"frames ref/cpp      {r['frames']}  [{'OK' if r['gates']['frames'] else 'FAIL'}]")
@@ -157,8 +234,13 @@ def main() -> int:
           + "".join(f"\n    frame {f} lane {l}: {a} vs {b} pts, mean|dx| {d} px" for f, l, a, b, d in r['lane_mismatched']))
     print(f"seg min equal       {r['seg_min_equal']:.5f} over {r['seg_pngs']} PNGs, missing {r['seg_missing']} "
           f"(>=0.99) [{'OK' if r['gates']['seg'] else 'FAIL'}]")
-    print("RESULT:", "PASS" if r["pass"] else "FAIL")
-    return 0 if r["pass"] else 1
+    ok = r["pass"]
+    if a.adas:
+        ra = compare_adas(Path(a.ref_dir), Path(a.cpp_dir))
+        print_adas(ra)
+        ok = ok and ra["pass"]
+    print("RESULT:", "PASS" if ok else "FAIL")
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":
