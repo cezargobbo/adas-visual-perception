@@ -15,7 +15,7 @@ Config Config::fast() {
 Config Config::accurate() {
   Config c;
   c.det_onnx = "yolo26x.onnx";
-  c.det_precision = Precision::FP32;
+  c.det_precision = Precision::FP16;  // same events as fp32 on the 17 regression videos, 2.4x faster
   c.det_imgsz = 1280;
   c.seg_onnx = "segformer-b5-cityscapes-1280x720.onnx";
   c.seg_precision = Precision::FP16;

@@ -102,7 +102,7 @@ the defaults used, the derived windows (`ego_hold_frames`, `ego_persist`, `fcw_o
 ## Event-level regression: C++ `video_demo` vs Python reference (17 videos x 2 profiles)
 
 `run_cpp_regression.sh --videos-dir DIR --profile P --dry` (RTX 4070 Laptop, dry run = no encoding, `--no-seg`,
-default fp32 detector) against `tests/regression/reference/P/` (strict, +-0.5 s, type + level/side).
+fp32 detector, the default at the time of these runs) against `tests/regression/reference/P/` (strict, +-0.5 s, type + level/side).
 The counts are all alert events (FCW + LDW + RLR). "Python fps" = frames / wall time of the reference run in
 `summary.txt` (model loading and the detections video included, shared GPU: noisy); "C++ fps" = the `total` fps
 printed by `video_demo` at the end of the run (decode + lanes + detection + tracking + ADAS, no encoding).
@@ -132,7 +132,7 @@ printed by `video_demo` at the end of the run (decode + lanes + detection + trac
 `fps (all 17 videos, frames-weighted): Python 20.1, C++ 129.2`
 
 
-### Accurate profile (fp32 detector; fp16 experiment in the last two columns)
+### Accurate profile (fp32 detector, record of the original runs; fp16 experiment in the last two columns)
 
 | video | frames | ref events | C++ events | matched | borderline | Python fps | C++ fps (fp32) | result | C++ fps (fp16) | fp16 matched/ref |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -168,6 +168,8 @@ borderline case. Per-video outputs of the runs: `outputs/cpp_regression/<profile
 
 All 17 pairs pass strictly (17/17 identical events, no borderline), with 48.6 fps against 20.3 fps for fp32 in the
 dry run (2.4x; the fp16 TensorRT engine of yolo26x takes about 10 min to build the first time, then it is cached).
-The default of the accurate profile stays fp32: switching it to fp16 is a decision for the maintainers.
+Decision: the accurate profile now defaults to the fp16 detector engine (`Config::accurate()`), based on this
+experiment; fp32 stays available with the hidden `--det-precision fp32`. The fp32 table above is kept as the record
+of the original runs, and the reference CSVs were not regenerated.
 Recording the accurate-profile videos (`--no-seg`, with encoding) ran at 11.5-13 fps in fp32 because Python
 dumps shared the GPU at the same time; the dry-run numbers above are the reference.

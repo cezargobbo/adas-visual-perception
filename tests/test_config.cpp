@@ -59,6 +59,7 @@ TEST_CASE("Config defaults match the Python argparse defaults") {
     const Config c = Config::accurate();
     check_common(c, d);
     CHECK(c.det_imgsz == j["profiles"]["accurate"]["det_imgsz"].get<int>());
+    CHECK(c.det_precision == Precision::FP16);
   }
   SECTION("a default-constructed Config") {
     check_common(Config{}, d);
