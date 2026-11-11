@@ -76,9 +76,16 @@ struct OutputPlan {
   std::vector<std::string> videos;  // in writing order: detections, segmentation, combined
   std::optional<std::string> csv;
 };
-// Files that a run would create. With --show or --dry no video is written, and with --show no CSV either;
-// the CSV also needs at least one alert monitor.
+// Files that a run would create. With --show nothing is written; with --dry only the CSV (a deliberate
+// deviation from the Python flag); the CSV also needs at least one alert monitor.
 OutputPlan plan_outputs(const Options& o);
+
+// Frames processed for --start / --duration (main() of the reference): int() truncation, clamped to the video
+// length. n_frames is <= 0 when the start is at or beyond the end.
+struct Segment {
+  int start_f = 0, end_f = 0, n_frames = 0;
+};
+Segment segment(double start_s, std::optional<double> duration_s, double fps, int total);
 
 const char* help_text();
 

@@ -8,6 +8,7 @@
 #include <cerrno>
 #include <charconv>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <stdexcept>
 
@@ -22,24 +23,46 @@ std::string num(double v) {
 }
 
 // Runs ffmpeg with `args`, stdin from `stdin_fd` (or /dev/null) and stdout to `stdout_fd` (or /dev/null).
-// Returns the pid; the caller owns the fds.
+// Returns the pid; the caller owns the fds. Throws if ffmpeg cannot be executed (reported by the child through
+// a close-on-exec pipe, so a missing binary is an error here and not a silent exit code 127).
 pid_t spawn(const std::vector<std::string>& args, int stdin_fd, int stdout_fd) {
   std::vector<char*> argv;
   std::vector<std::string> store = args;
   store.insert(store.begin(), "ffmpeg");
   for (auto& s : store) argv.push_back(s.data());
   argv.push_back(nullptr);
+  int ep[2];
+  if (pipe2(ep, O_CLOEXEC) != 0) throw std::runtime_error("pipe failed");
   const pid_t pid = fork();
-  if (pid < 0) throw std::runtime_error(std::string("fork failed: ") + std::strerror(errno));
+  if (pid < 0) {
+    ::close(ep[0]);
+    ::close(ep[1]);
+    throw std::runtime_error(std::string("fork failed: ") + std::strerror(errno));
+  }
   if (pid == 0) {
     const int devnull = open("/dev/null", O_RDWR);
     dup2(stdin_fd >= 0 ? stdin_fd : devnull, 0);
     dup2(stdout_fd >= 0 ? stdout_fd : devnull, 1);
-    if (stdin_fd >= 0) close(stdin_fd);
-    if (stdout_fd >= 0) close(stdout_fd);
-    if (devnull > 2) close(devnull);
+    if (stdin_fd > 2) ::close(stdin_fd);
+    if (stdout_fd > 2) ::close(stdout_fd);
+    if (devnull > 2) ::close(devnull);
     execvp("ffmpeg", argv.data());
+    const int err = errno;
+    const ssize_t ignored = ::write(ep[1], &err, sizeof err);
+    (void)ignored;
     _exit(127);
+  }
+  ::close(ep[1]);
+  int err = 0;
+  ssize_t n;
+  do {
+    n = read(ep[0], &err, sizeof err);
+  } while (n < 0 && errno == EINTR);
+  ::close(ep[0]);
+  if (n == static_cast<ssize_t>(sizeof err)) {
+    int st = 0;
+    waitpid(pid, &st, 0);
+    throw std::runtime_error(std::string("cannot run ffmpeg: ") + std::strerror(err));
   }
   return pid;
 }
@@ -69,6 +92,21 @@ std::vector<std::string> ffmpeg_args(const WriterSpec& s) {
   for (const char* x : {"-pix_fmt", "yuv420p"}) a.push_back(x);
   a.push_back(s.path);
   return a;
+}
+
+bool ffmpeg_available() {
+  const char* path = std::getenv("PATH");
+  std::string p = path ? path : "";
+  size_t pos = 0;
+  while (pos <= p.size()) {
+    size_t e = p.find(':', pos);
+    if (e == std::string::npos) e = p.size();
+    const std::string dir = p.substr(pos, e - pos);
+    const std::string cand = (dir.empty() ? "." : dir) + "/ffmpeg";
+    if (access(cand.c_str(), X_OK) == 0) return true;
+    pos = e + 1;
+  }
+  return false;
 }
 
 std::string resolve_encoder(const std::string& requested) {
@@ -135,16 +173,23 @@ void FfmpegWriter::write(const cv::Mat& bgr) {
   }
 }
 
-void FfmpegWriter::close() {
+int FfmpegWriter::close() {
   if (fd_ >= 0) {
     ::close(fd_);
     fd_ = -1;
   }
+  int code = -1;
   if (pid_ > 0) {
     int st = 0;
-    waitpid(pid_, &st, 0);
+    while (waitpid(pid_, &st, 0) < 0 && errno == EINTR) {
+    }
     pid_ = -1;
+    if (WIFEXITED(st)) code = WEXITSTATUS(st);
+    if (code != 0)
+      std::fprintf(stderr, "[warn] ffmpeg exited with %s while writing %s\n",
+                   code < 0 ? "an abnormal status" : ("status " + std::to_string(code)).c_str(), path_.c_str());
   }
+  return code;
 }
 
 }  // namespace adasvp::example

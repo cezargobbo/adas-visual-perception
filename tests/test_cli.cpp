@@ -1,7 +1,12 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include <cstdlib>
+#include <filesystem>
 #include <fstream>
+#include <fcntl.h>
+#include <unistd.h>
+#include <catch2/matchers/catch_matchers_string.hpp>
 #include <nlohmann/json.hpp>
 #include <sstream>
 #include <string>
@@ -243,7 +248,9 @@ TEST_CASE("output plan", "[cli]") {
 
   plan = plan_outputs(*parse({"/d/sp1.mp4", "-o", "o/s", "--dry"}).opt);
   CHECK(plan.videos.empty());
-  CHECK(!plan.csv);  // like the reference: --dry writes no file
+  CHECK(plan.csv == "o/s_alerts.csv");  // deliberate: --dry writes the CSV (the Python flag writes nothing)
+  plan = plan_outputs(*parse({"/d/sp1.mp4", "-o", "o/s", "--dry", "--no-det"}).opt);
+  CHECK(!plan.csv);
 }
 
 TEST_CASE("alerts csv header and numeric formatting follow log_event", "[cli]") {
@@ -305,4 +312,147 @@ TEST_CASE("ffmpeg writer command line mirrors the reference", "[cli]") {
   for (const auto& x : b) jb += x + " ";
   CHECK(jb.find("-c:v h264_nvenc -preset medium -rc vbr -cq 21 -b:v 0 -pix_fmt yuv420p o.mp4") != std::string::npos);
   CHECK(jb.find("-ss") == std::string::npos);
+}
+
+TEST_CASE("cli repeated scalar options keep the last value (argparse parity)", "[cli]") {
+  auto p = parse({"in.mp4", "--hfov", "60", "--hfov", "80", "--profile", "fast", "--profile", "accurate",
+                  "--rlr-zone", "0.1", "0.2", "--rlr-zone", "0.3", "0.9"});
+  REQUIRE(p.opt);
+  CHECK(p.opt->hfov == Approx(80));
+  CHECK(p.opt->profile == "accurate");
+  CHECK(p.opt->rlr_zone.first == Approx(0.3));
+  CHECK(p.opt->rlr_zone.second == Approx(0.9));
+}
+
+TEST_CASE("segment math of --start / --duration", "[cli]") {
+  Segment s = segment(0, std::nullopt, 29.97, 1000);
+  CHECK(s.start_f == 0);
+  CHECK(s.end_f == 1000);
+  CHECK(s.n_frames == 1000);
+  s = segment(120, 5.0, 29.97, 100000);  // int(119.88*...) truncation: 3596, + int(149.85) = 149
+  CHECK(s.start_f == 3596);
+  CHECK(s.end_f == 3745);
+  CHECK(s.n_frames == 149);
+  s = segment(1, 100.0, 30.0, 200);  // duration past the end is clamped to the video length
+  CHECK(s.start_f == 30);
+  CHECK(s.end_f == 200);
+  CHECK(s.n_frames == 170);
+  s = segment(10, std::nullopt, 30.0, 200);  // start beyond the end: nothing to process
+  CHECK(s.start_f == 300);
+  CHECK(s.end_f == 200);
+  CHECK(s.n_frames == -100);
+  s = segment(10, 2.0, 30.0, 200);
+  CHECK(s.end_f == 200);
+  CHECK(s.n_frames == -100);
+  s = segment(0.5, 0.0, 30.0, 200);
+  CHECK(s.n_frames == 0);
+}
+
+TEST_CASE("alerts summary line ties keep the first-seen order", "[cli]") {
+  AdasStats st;
+  st.fcw_events = 2;
+  st.ldw_events = 1;
+  st.rlr_events = 0;
+  st.ldw_frames = {{"armed", 20}, {"curve", 30}, {"arming", 30}, {"state", 10}, {"width", 30}};
+  st.ldw_frames_order = {"state", "width", "armed", "curve", "arming"};
+  st.ldw_crossings_suppressed = 3;
+  // 120 frames in total; reasons by count, stable: width, curve, arming (30 each, first-seen order), state
+  CHECK(format_alerts_summary(true, st) ==
+        "[info] alerts: FCW 2, LDW 1, RLR 0 | LDW armed in 17% of frames, crossings suppressed 3; disarm reasons: "
+        "width 25%, curve 25%, arming 25%, state 8%");
+  CHECK(format_alerts_summary(false, st) == "[info] alerts: FCW 2, LDW 1, RLR 0");
+}
+
+namespace {
+namespace fs = std::filesystem;
+
+// Directory with a fake `ffmpeg` shell script, put alone on PATH for the scope of the object.
+struct FakeFfmpeg {
+  fs::path dir;
+  std::string old_path;
+  bool had_path = false;
+  explicit FakeFfmpeg(const std::string& script) {
+    dir = fs::temp_directory_path() / ("adasvp_fake_ffmpeg_" + std::to_string(getpid()) + "_" + std::to_string(counter()++));
+    fs::create_directories(dir);
+    if (!script.empty()) {
+      std::ofstream(dir / "ffmpeg") << "#!/bin/sh\n" << script;
+      fs::permissions(dir / "ffmpeg", fs::perms::owner_all);
+    }
+    if (const char* p = std::getenv("PATH")) {
+      old_path = p;
+      had_path = true;
+    }
+    setenv("PATH", (dir.string() + ":/usr/bin:/bin").c_str(), 1);
+    if (script.empty()) setenv("PATH", dir.string().c_str(), 1);
+  }
+  ~FakeFfmpeg() {
+    if (had_path) setenv("PATH", old_path.c_str(), 1);
+    std::error_code ec;
+    fs::remove_all(dir, ec);
+  }
+  static int& counter() {
+    static int c = 0;
+    return c;
+  }
+};
+
+WriterSpec tiny_spec(const std::string& path) {
+  WriterSpec s;
+  s.path = path;
+  s.width = 640;
+  s.height = 480;
+  return s;
+}
+}  // namespace
+
+TEST_CASE("ffmpeg writer: normal run pipes every frame and closes with status 0", "[cli]") {
+  FakeFfmpeg fake("for last; do :; done\ncat > \"$last\"\n");
+  const std::string out = (fake.dir / "out.bin").string();
+  {
+    FfmpegWriter w(tiny_spec(out));
+    cv::Mat frame(480, 640, CV_8UC3, cv::Scalar(1, 2, 3));
+    for (int i = 0; i < 4; ++i) w.write(frame);
+    CHECK(w.close() == 0);
+    CHECK(w.close() == -1);  // closing twice is harmless
+    CHECK_THROWS(w.write(frame));
+  }
+  CHECK(fs::file_size(out) == 4u * 640 * 480 * 3);
+}
+
+TEST_CASE("ffmpeg writer: an ffmpeg that exits early makes write throw and is reaped", "[cli]") {
+  FakeFfmpeg fake("exit 3\n");
+  FfmpegWriter w(tiny_spec((fake.dir / "never.mp4").string()));
+  cv::Mat frame(480, 640, CV_8UC3, cv::Scalar(0, 0, 0));
+  bool threw = false;
+  for (int i = 0; i < 200 && !threw; ++i) {
+    try {
+      w.write(frame);
+    } catch (const std::runtime_error&) {
+      threw = true;
+    }
+  }
+  CHECK(threw);
+  const std::string log = (fake.dir / "stderr.txt").string();
+  const int saved = dup(2);
+  const int fd = open(log.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
+  dup2(fd, 2);
+  const int code = w.close();  // reaped, exit status reported
+  dup2(saved, 2);
+  close(fd);
+  close(saved);
+  CHECK(code == 3);
+  std::ifstream f(log);
+  const std::string text((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+  CHECK(text.find("[warn] ffmpeg exited with status 3") != std::string::npos);
+}
+
+TEST_CASE("ffmpeg writer: a missing ffmpeg is an error at construction", "[cli]") {
+  FakeFfmpeg fake("");  // PATH without any ffmpeg
+  CHECK(!ffmpeg_available());
+  CHECK_THROWS_WITH(FfmpegWriter(tiny_spec("x.mp4")), Catch::Matchers::ContainsSubstring("cannot run ffmpeg"));
+}
+
+TEST_CASE("ffmpeg_available finds an executable on PATH", "[cli]") {
+  FakeFfmpeg fake("exit 0\n");
+  CHECK(ffmpeg_available());
 }

@@ -119,7 +119,9 @@ LdwStatus LDWMonitor::update(double t, bool lane_ok) {
   if (fail == "lat_speed") hist_.clear();
   fail_ = fail;
   armed_ = fail.empty();
-  ++stats_[armed_ ? "armed" : fail];
+  const std::string key = armed_ ? "armed" : fail;
+  if (stats_.find(key) == stats_.end()) stats_order_.push_back(key);
+  ++stats_[key];
   LdwStatus out;
   if (!armed_) {
     cnt_[0] = cnt_[1] = 0;

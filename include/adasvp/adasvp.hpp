@@ -112,6 +112,7 @@ struct AdasStats {
   int fcw_events = 0, ldw_events = 0, rlr_events = 0;
   // frames per LDW disarm reason (key "armed" = frames armed), like LDWMonitor.stats
   std::map<std::string, long long> ldw_frames;
+  std::vector<std::string> ldw_frames_order;  // keys of ldw_frames in first-seen order (like the Python dict)
   int ldw_crossings_suppressed = 0;  // LDWMonitor.n_cross
 };
 

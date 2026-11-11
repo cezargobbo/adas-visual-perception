@@ -7,6 +7,7 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "adas/ego_lane.hpp"
 #include "adasvp/adasvp.hpp"
@@ -30,6 +31,8 @@ class LDWMonitor {
   const std::map<std::string, double>& metrics() const { return m_; }
   // Frames per disarm reason; key "armed" counts the armed frames.
   const std::map<std::string, long long>& stats() const { return stats_; }
+  // Keys of stats() in the order they were first counted (insertion order of the Python defaultdict).
+  const std::vector<std::string>& stats_order() const { return stats_order_; }
   int n_cross() const { return n_cross_; }
 
  private:
@@ -55,6 +58,7 @@ class LDWMonitor {
   std::string fail_ = "start";
   std::map<std::string, double> m_;
   std::map<std::string, long long> stats_;
+  std::vector<std::string> stats_order_;
   std::optional<double> last_v_;
   int n_cross_ = 0;
 };

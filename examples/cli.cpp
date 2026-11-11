@@ -2,7 +2,7 @@
 
 #include <CLI/CLI.hpp>
 
-#include <cstdlib>
+#include <algorithm>
 #include <filesystem>
 #include <ostream>
 
@@ -273,6 +273,8 @@ std::optional<Options> parse_args(int argc, const char* const* argv, std::ostrea
   std::vector<double> rlr_zone;
 
   CLI::App app{"", "video_demo"};
+  // argparse parity: a repeated scalar option keeps the last value
+  app.option_defaults()->multi_option_policy(CLI::MultiOptionPolicy::TakeLast);
   app.set_help_flag();  // replaced by the Python-style help below
   app.add_flag("-h,--help", help);
   app.add_option("input", o.input)->required();
@@ -368,10 +370,19 @@ std::optional<Options> parse_args(int argc, const char* const* argv, std::ostrea
   return o;
 }
 
+Segment segment(double start_s, std::optional<double> duration_s, double fps, int total) {
+  Segment s;
+  s.start_f = static_cast<int>(start_s * fps);  // int() truncates toward zero, like the Python
+  s.end_f = duration_s ? std::min(total, s.start_f + static_cast<int>(*duration_s * fps)) : total;
+  s.n_frames = s.end_f - s.start_f;
+  return s;
+}
+
 Config make_config(const Options& o, double fps) {
   Config c = o.profile == "fast" ? Config::fast() : Config::accurate();
+  // Default models location: Config::models_dir ("models", relative to the working directory; spec section 7).
+  // Nothing comes from environment variables (spec section 11).
   if (o.models_dir) c.models_dir = *o.models_dir;
-  else if (const char* e = std::getenv("ADASVP_MODELS_DIR")) c.models_dir = e;
   if (o.det_model) c.det_onnx = model_arg(*o.det_model);
   if (o.seg_model) c.seg_onnx = model_arg(*o.seg_model);
   if (o.det_imgsz) c.det_imgsz = *o.det_imgsz;
@@ -417,8 +428,10 @@ OutputPlan plan_outputs(const Options& o) {
     if (!o.no_det) p.videos.push_back(p.prefix + "_detections.mp4");
     if (!o.no_seg) p.videos.push_back(p.prefix + "_segmentation.mp4");
     if (!o.no_det && !o.no_seg && !o.no_combined) p.videos.push_back(p.prefix + "_combined.mp4");
-    if (o.fcw || o.ldw || o.rlr) p.csv = p.prefix + "_alerts.csv";
   }
+  // Deliberate deviation from the Python tuning flag: there --dry also skips the CSV; here it writes the CSV
+  // (and only the CSV), which the regression tooling relies on.
+  if (o.fcw || o.ldw || o.rlr) p.csv = p.prefix + "_alerts.csv";
   return p;
 }
 

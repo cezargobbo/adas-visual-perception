@@ -23,6 +23,9 @@ std::vector<std::string> ffmpeg_args(const WriterSpec& s);
 // Resolves "auto" (nvenc when `ffmpeg -encoders` lists h264_nvenc, else x264); nvenc and x264 pass through.
 std::string resolve_encoder(const std::string& requested);
 
+// True when an executable called "ffmpeg" is found in PATH (shutil.which("ffmpeg") of the Python).
+bool ffmpeg_available();
+
 class FfmpegWriter {
  public:
   explicit FfmpegWriter(const WriterSpec& s);  // throws std::runtime_error if ffmpeg cannot be started
@@ -30,7 +33,9 @@ class FfmpegWriter {
   FfmpegWriter(const FfmpegWriter&) = delete;
   FfmpegWriter& operator=(const FfmpegWriter&) = delete;
   void write(const cv::Mat& bgr);  // continuous CV_8UC3 frame of the size given in the spec
-  void close();                    // closes the pipe and waits for ffmpeg; returns normally if already closed
+  // Closes the pipe and waits for ffmpeg (reaping the child); prints a [warn] to stderr when it exits with a
+  // non-zero status. Returns the exit status (-1 if it did not exit normally or was already closed).
+  int close();
 
  private:
   int fd_ = -1;

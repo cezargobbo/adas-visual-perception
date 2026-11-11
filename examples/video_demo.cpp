@@ -134,30 +134,6 @@ std::string debug_row(int frame, int W, int H, const Options& o, const FrameResu
   return s + "\n";
 }
 
-// "[info] alerts: ..." summary of the reference
-std::string alerts_summary(const Options& o, const AdasStats& st) {
-  std::string msg = fmt("[info] alerts: FCW %d, LDW %d, RLR %d", st.fcw_events, st.ldw_events, st.rlr_events);
-  if (o.ldw) {
-    long long total = 0;
-    for (const auto& kv : st.ldw_frames) total += kv.second;
-    total = std::max(total, 1LL);
-    auto count = [&](const char* k) {
-      auto it = st.ldw_frames.find(k);
-      return it == st.ldw_frames.end() ? 0LL : it->second;
-    };
-    msg += fmt(" | LDW armed in %.0f%% of frames, crossings suppressed %d; disarm reasons: ",
-               100.0 * static_cast<double>(count("armed")) / static_cast<double>(total), st.ldw_crossings_suppressed);
-    std::vector<std::pair<std::string, long long>> reasons;
-    for (const auto& kv : st.ldw_frames)
-      if (kv.first != "armed") reasons.push_back(kv);
-    std::stable_sort(reasons.begin(), reasons.end(), [](const auto& a, const auto& b) { return a.second > b.second; });
-    for (size_t k = 0; k < reasons.size(); ++k)
-      msg += fmt("%s%s %.0f%%", k ? ", " : "", reasons[k].first.c_str(),
-                 100.0 * static_cast<double>(reasons[k].second) / static_cast<double>(total));
-  }
-  return msg;
-}
-
 View show_view(const std::string& s) { return s == "seg" ? View::Segmentation : s == "comb" ? View::Combined : View::Detections; }
 
 int run(const Options& o) {
@@ -170,6 +146,10 @@ int run(const Options& o) {
   if (o.seg_size) std::cout << "[warn] --seg-size is ignored: the segmentation resolution is fixed by the ONNX file\n";
   std::cout << "[info] device: cuda " << device_name << "\n";
 
+  if (!o.show && !o.dry && !ffmpeg_available()) {  // before the (slow) model loading
+    std::cerr << "[error] ffmpeg not found in PATH (needed to write the videos; use --show or --dry to run without it)\n";
+    return 1;
+  }
   cv::VideoCapture cap(o.input);
   if (!cap.isOpened()) {
     std::cerr << "[error] cannot open video: " << o.input << "\n";
@@ -182,10 +162,13 @@ int run(const Options& o) {
     std::cerr << "[error] invalid video properties: " << o.input << "\n";
     return 1;
   }
-  const int start_f = static_cast<int>(o.start * fps);
-  const int end_f = o.duration ? std::min(total, start_f + static_cast<int>(*o.duration * fps)) : total;
+  const Segment seg = segment(o.start, o.duration, fps, total);
+  const int start_f = seg.start_f, end_f = seg.end_f, n_frames = seg.n_frames;
+  if (n_frames <= 0) {
+    std::cerr << "[error] nothing to process: --start is at or beyond the end of the video\n";
+    return 1;
+  }
   if (start_f) cap.set(cv::CAP_PROP_POS_FRAMES, start_f);
-  const int n_frames = end_f - start_f;
 
   const Config cfg = make_config(o, fps);
   std::cout << "[info] profile '" << o.profile << "': " << (o.no_seg ? "" : "seg=" + cfg.seg_onnx + "  ")
@@ -208,8 +191,9 @@ int run(const Options& o) {
 
   // outputs
   const OutputPlan plan = plan_outputs(o);
-  const bool writing = !o.show && !o.dry;
-  if (writing && fs::path(plan.prefix).has_parent_path()) fs::create_directories(fs::path(plan.prefix).parent_path());
+  const bool writing = !plan.videos.empty();
+  if ((writing || plan.csv) && fs::path(plan.prefix).has_parent_path())
+    fs::create_directories(fs::path(plan.prefix).parent_path());
   std::string encoder;
   if (writing) encoder = resolve_encoder(o.encoder);
   std::map<View, std::unique_ptr<FfmpegWriter>> writers;
@@ -341,10 +325,10 @@ int run(const Options& o) {
 
   cap.release();
   if (o.show) cv::destroyAllWindows();
-  for (auto& kv : writers) kv.second->close();
+  for (auto& kv : writers) kv.second->close();  // warns on a non-zero ffmpeg exit
   if (csv.is_open()) csv.close();
   if (dbg.is_open()) dbg.close();
-  if (o.fcw || o.ldw || o.rlr) std::cout << alerts_summary(o, pipe.stats()) << "\n";
+  if (o.fcw || o.ldw || o.rlr) std::cout << format_alerts_summary(o.ldw, pipe.stats()) << "\n";
   std::cout << "[done]\n";
   return 0;
 }

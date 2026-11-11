@@ -211,6 +211,7 @@ FrameResult Pipeline::process(const cv::Mat& bgr, double t_seconds) {
       a.tlc_s = r.ldw.tlc;
     }
     s.adas_stats.ldw_frames = ad.ldw->stats();
+    s.adas_stats.ldw_frames_order = ad.ldw->stats_order();
     s.adas_stats.ldw_crossings_suppressed = ad.ldw->n_cross();
   }
   if (ad.rlr) {

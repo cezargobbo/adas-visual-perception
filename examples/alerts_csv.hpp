@@ -15,4 +15,8 @@ std::string format_alert_row(const Alert& a);
 // The row without its first four fields (what the "[alert]" log line prints after the level/side).
 std::string format_alert_detail(const Alert& a);
 
+// The "[info] alerts: ..." line printed at the end of a run (Python main()): event counts and, with the LDW on,
+// the LDW statistics with the disarm reasons sorted by frame count (ties keep the first-seen order).
+std::string format_alerts_summary(bool ldw_on, const AdasStats& st);
+
 }  // namespace adasvp::example
