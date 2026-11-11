@@ -26,6 +26,8 @@ add_library(adasvp SHARED
   src/trt/trt_engine.cpp
   src/preprocess/letterbox.cpp
   src/models/yolo_detector.cpp
+  src/models/segmenter.cpp
+  src/postprocess/seg_kernels.cu
   src/preprocess/kernels.cu
 )
 target_include_directories(adasvp

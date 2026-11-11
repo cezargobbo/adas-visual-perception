@@ -30,7 +30,8 @@ void letterbox_to_device(const cv::Mat& bgr, int imgsz, float* d_nchw, cudaStrea
 void polar_to_device(const cv::Mat& bgr, float* d_nchw, cudaStream_t stream);
 
 // SegFormer input: RGB /255, bilinear (align_corners=False) to w x h, ImageNet mean/std.
-// Writes 3*h*w values to d_nchw_or_half: float32, or __half when fp16_input is true.
+// Writes 3*h*w values to d_nchw_or_half: float32, or __half (3*h*w*2 bytes, despite the float*
+// type) when fp16_input is true. Pick fp16_input from the engine's input dtype.
 void segformer_to_device(const cv::Mat& bgr, int w, int h, float* d_nchw_or_half, bool fp16_input,
                          cudaStream_t stream);
 

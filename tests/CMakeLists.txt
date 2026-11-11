@@ -8,6 +8,7 @@ add_executable(adasvp_tests
   test_trt_engine.cpp
   test_preprocess.cpp
   test_yolo.cpp
+  test_segmenter.cpp
 )
 target_include_directories(adasvp_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src

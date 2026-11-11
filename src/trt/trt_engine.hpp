@@ -44,6 +44,8 @@ class TrtEngine {
   void* deviceBuffer(const std::string& name);
   // Current shape of a tensor.
   std::vector<int64_t> shape(const std::string& name) const;
+  // Element type of a tensor as seen by the built engine.
+  nvinfer1::DataType dtype(const std::string& name) const;
   void enqueue(cudaStream_t stream);
 
  private:

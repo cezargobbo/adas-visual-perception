@@ -303,6 +303,11 @@ std::vector<int64_t> TrtEngine::shape(const std::string& name) const {
   return std::vector<int64_t>(d.d, d.d + d.nbDims);
 }
 
+nvinfer1::DataType TrtEngine::dtype(const std::string& name) const {
+  if (!buffers_.count(name)) throw std::invalid_argument("unknown tensor: " + name);
+  return impl_->engine->getTensorDataType(name.c_str());
+}
+
 void TrtEngine::enqueue(cudaStream_t stream) {
   if (!impl_->context->enqueueV3(stream)) throw std::runtime_error("TensorRT enqueueV3 failed");
 }
