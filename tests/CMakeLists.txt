@@ -16,6 +16,7 @@ add_executable(adasvp_tests
   test_ego_lane.cpp
   test_lead.cpp
   test_fcw_ldw.cpp
+  test_rlr.cpp
 )
 target_include_directories(adasvp_tests PRIVATE
   ${PROJECT_SOURCE_DIR}/src
