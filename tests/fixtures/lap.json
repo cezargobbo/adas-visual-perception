@@ -1,0 +1,10 @@
+{
+ "count": 20,
+ "tie_cases": [
+  5,
+  8,
+  15,
+  16
+ ],
+ "note": "costs are concatenated row-major float32 (widen to double); x[row] = assigned column or -1, y[col] = assigned row or -1, concatenated per matrix (lengths r and c); lap.lapjv(cost, extend_cost=True, cost_limit=limit); empty matrices: all -1 (wrapper short-circuit)"
+}

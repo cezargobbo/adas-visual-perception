@@ -1,0 +1,70 @@
+{
+ "frame_size": [
+  1920,
+  1080
+ ],
+ "thresholds": [
+  0.44,
+  0.05
+ ],
+ "cases": [
+  {
+   "case": 0,
+   "o2o_max": 0.7876172661781311,
+   "thr": {
+    "0.44": {
+     "kept_priors": 4,
+     "lanes": 4
+    },
+    "0.05": {
+     "kept_priors": 18,
+     "lanes": 18
+    }
+   }
+  },
+  {
+   "case": 1,
+   "o2o_max": 0.7876172661781311,
+   "thr": {
+    "0.44": {
+     "kept_priors": 1,
+     "lanes": 1
+    },
+    "0.05": {
+     "kept_priors": 3,
+     "lanes": 3
+    }
+   }
+  },
+  {
+   "case": 2,
+   "o2o_max": 0.7876172661781311,
+   "thr": {
+    "0.44": {
+     "kept_priors": 2,
+     "lanes": 2
+    },
+    "0.05": {
+     "kept_priors": 8,
+     "lanes": 8
+    }
+   }
+  },
+  {
+   "case": 3,
+   "o2o_max": 0.0,
+   "thr": {
+    "0.44": {
+     "kept_priors": 0,
+     "lanes": 0
+    },
+    "0.05": {
+     "kept_priors": 0,
+     "lanes": 0
+    }
+   }
+  }
+ ],
+ "model": "polarrcnn_curvelanes_dla34.onnx run with onnxruntime CPU fp32",
+ "note": "case 3 is an all-zero input. lanes_norm = lanes_polar.decode output (x/800, y/1440); px = (x*W, y*H) as float32 like PolarLaneDetector; offsets delimit lanes in the concatenated arrays"
+}

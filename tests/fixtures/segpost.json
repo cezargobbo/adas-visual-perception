@@ -1,0 +1,23 @@
+{
+ "logits_shape": [
+  1,
+  19,
+  36,
+  64
+ ],
+ "tied_source_pixels_random": 23,
+ "tie_rule": "lowest class index wins (torch.argmax)",
+ "outputs": {
+  "271x153": {
+   "width": 271,
+   "height": 153,
+   "tied_pixels_after_upsample": 369
+  },
+  "640x360": {
+   "width": 640,
+   "height": 360,
+   "tied_pixels_after_upsample": 2000
+  }
+ },
+ "note": "1920x1080 expected output omitted (2 MB); upsample is F.interpolate bilinear align_corners=False in fp32 on CPU"
+}

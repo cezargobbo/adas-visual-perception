@@ -1,0 +1,23 @@
+{
+ "input": {
+  "kind": "hash_image",
+  "width": 1280,
+  "height": 720,
+  "seed": 1360
+ },
+ "imgsz": 1280,
+ "ratio": 1.0,
+ "pad": [
+  0.0,
+  8.0
+ ],
+ "shape": [
+  1,
+  3,
+  736,
+  1280
+ ],
+ "sample_stride": 32,
+ "bits_sum": "000a885b5ae0a7db",
+ "bits_wsum": "1b3d25ad28418bb7"
+}

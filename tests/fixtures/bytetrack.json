@@ -1,0 +1,36 @@
+{
+ "params": {
+  "tracker_type": "bytetrack",
+  "track_high_thresh": 0.25,
+  "track_low_thresh": 0.1,
+  "new_track_thresh": 0.25,
+  "track_buffer": 30,
+  "match_thresh": 0.8,
+  "fuse_score": true
+ },
+ "image_shape_hw": [
+  1080,
+  1920
+ ],
+ "sequences": {
+  "A": {
+   "frames": 80,
+   "total_dets": 245,
+   "total_tracks": 242,
+   "unique_ids": 4
+  },
+  "B": {
+   "frames": 50,
+   "total_dets": 254,
+   "total_tracks": 250,
+   "unique_ids": 5
+  },
+  "C": {
+   "frames": 70,
+   "total_dets": 48,
+   "total_tracks": 45,
+   "unique_ids": 3
+  }
+ },
+ "note": "dets rows = x1,y1,x2,y2,score,cls (float32, what enters BYTETracker.update, boxes as ultralytics Boxes); tracks rows = x1,y1,x2,y2,track_id,score,cls,idx (float32, return value of update). *_counts give the number of rows per frame. A: enter/vanish 5 frames/return/leave for good; B: overlapping objects, low-score and zero-width detections; C: empty frames at start and a gap longer than track_buffer (30), so the object returns with a new id"
+}
