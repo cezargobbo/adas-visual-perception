@@ -62,7 +62,7 @@ cv::Mat Segmenter::segment(const cv::Mat& bgr, cudaStream_t stream) {
     buf_->logits_bytes = nlog * sizeof(float);
   }
 
-  segformer_to_device(bgr, in_w_, in_h_, static_cast<float*>(engine_->deviceBuffer("pixel_values")),
+  segformer_to_device(bgr, in_w_, in_h_, engine_->deviceBuffer("pixel_values"),
                       in_half_, stream);
   engine_->enqueue(stream);
 

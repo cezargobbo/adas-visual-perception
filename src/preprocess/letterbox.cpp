@@ -45,7 +45,14 @@ class DeviceImage {
     h_ = m.rows;
     pitch_ = w_ * 3;
     ADASVP_CUDA_CHECK(cudaMallocAsync(reinterpret_cast<void**>(&d_), static_cast<size_t>(pitch_) * h_, stream_));
-    ADASVP_CUDA_CHECK(cudaMemcpy2DAsync(d_, pitch_, m.data, m.step, pitch_, h_, cudaMemcpyHostToDevice, stream_));
+    // The constructor does not complete if the copy throws, so ~DeviceImage would not run: free here.
+    try {
+      ADASVP_CUDA_CHECK(cudaMemcpy2DAsync(d_, pitch_, m.data, m.step, pitch_, h_, cudaMemcpyHostToDevice, stream_));
+    } catch (...) {
+      cudaFreeAsync(d_, stream_);
+      d_ = nullptr;
+      throw;
+    }
   }
   ~DeviceImage() {
     if (d_) cudaFreeAsync(d_, stream_);
@@ -108,7 +115,7 @@ void polar_to_device(const cv::Mat& bgr, float* d_nchw, cudaStream_t stream) {
   preprocess::launch_bgr_to_chw_f32(dev.ptr(), kW, kH, dev.pitch(), d_nchw, stream);
 }
 
-void segformer_to_device(const cv::Mat& bgr, int w, int h, float* d_nchw_or_half, bool fp16_input,
+void segformer_to_device(const cv::Mat& bgr, int w, int h, void* d_nchw_or_half, bool fp16_input,
                          cudaStream_t stream) {
   if (bgr.empty() || w <= 0 || h <= 0) throw std::invalid_argument("segformer: bad size");
   DeviceImage dev(bgr, stream);

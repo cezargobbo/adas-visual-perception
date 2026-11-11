@@ -56,3 +56,8 @@ and tolerance checks.
   on their first frame), in the order of `tracked_stracks`.
 - Production feeds the tracker only detections with score >= 0.30; sequence B deliberately
   includes lower scores to exercise the second association stage.
+- The regression dumps (`tools/regression`) store `tracks` clipped to the frame, like Ultralytics
+  `Results`; the `bytetrack_*` fixtures hold the raw, unclipped tracker output.
+- The `lap_*` cost limits are stored as float32 (widen them to double before use).
+- Checksums in the `*.json` files (`bits_sum`, `bits_wsum`) are 16-character hexadecimal strings
+  (unsigned 64-bit values), not JSON numbers.
