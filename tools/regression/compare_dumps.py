@@ -10,7 +10,10 @@ Gates (per video; exit code 0 only if all pass):
   lanes  same lane count on >= 98% of frames, mean |dx| <= 2 px (over true pairs). Matched pairs with
          mean |dx| > 20 px are greedy cross-lane mismatches: reported separately, excluded from the
          point-count gate. Point count over the true pairs: >= 99.9% with diff <= 1 and max diff <= 2.
-  seg    >= 99% equal pixels in every PNG
+  seg    >= 99% equal pixels in every PNG; the reference must contain at least one PNG
+Gates never pass on an empty comparison: a reference with lanes but no matched lane pair fails the lane
+gate, a reference without seg PNGs fails the seg gate, and more than MAX_MISMATCHED (5) cross-lane
+mismatched pairs per video fail the lane gate.
 """
 from __future__ import annotations
 
@@ -26,6 +29,9 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools" / "export"))
 from validate_polar import match_lanes  # noqa: E402
+
+
+MAX_MISMATCHED = 5  # greedy cross-lane mismatches tolerated per video
 
 
 def iou_matrix(a: np.ndarray, b: np.ndarray) -> np.ndarray:
@@ -65,6 +71,7 @@ def compare(ref_dir: Path, cpp_dir: Path) -> dict:
     id_pairs = []
     lane_frames_eq = lane_frames = 0
     dx_all, pt_diffs, mismatched = [], [], []
+    ref_lanes_total = 0
     for k in range(n):
         r, c = ref[k], cpp[k]
         # dets
@@ -78,6 +85,7 @@ def compare(ref_dir: Path, cpp_dir: Path) -> dict:
             id_pairs.append((int(c["tracks"][j][4]), int(r["tracks"][i][4])))
         # lanes
         lane_frames += 1
+        ref_lanes_total += len(r["lanes"])
         lane_frames_eq += len(r["lanes"]) == len(c["lanes"])
         rl = [np.array(l, dtype=np.float64) for l in r["lanes"]]
         cl = [np.array(l, dtype=np.float64) for l in c["lanes"]]
@@ -102,6 +110,7 @@ def compare(ref_dir: Path, cpp_dir: Path) -> dict:
     res["lane_pairs"] = len(pt_diffs)
     res["lane_pt_le1"] = float(np.mean(np.array(pt_diffs) <= 1)) if pt_diffs else 1.0
     res["lane_mismatched"] = mismatched
+    res["ref_lanes"] = ref_lanes_total
     # seg
     worst, nseg, missing = 1.0, 0, 0
     for p in sorted((ref_dir / "seg").glob("*.png")):
@@ -120,8 +129,10 @@ def compare(ref_dir: Path, cpp_dir: Path) -> dict:
         "dets": res["det_recall"] >= 0.97 and res["det_precision"] >= 0.97,
         "tracks": res["id_consistency"] >= 0.95,
         "lanes": res["lane_count_eq"] >= 0.98 and res["lane_dx_mean"] <= 2.0
-                 and res["lane_pt_le1"] >= 0.999 and res["lane_pt_diff_max"] <= 2,
-        "seg": res["seg_min_equal"] >= 0.99,
+                 and res["lane_pt_le1"] >= 0.999 and res["lane_pt_diff_max"] <= 2
+                 and len(mismatched) <= MAX_MISMATCHED
+                 and not (ref_lanes_total > 0 and res["lane_pairs"] == 0),
+        "seg": nseg > 0 and res["seg_min_equal"] >= 0.99,
     }
     res["gates"] = gates
     res["pass"] = all(gates.values())
@@ -142,7 +153,7 @@ def main() -> int:
           f"pt diff<=1 {r['lane_pt_le1']:.5f} (>=0.999) max {r['lane_pt_diff_max']} (<=2) "
           f"mean {r['lane_pt_diff_mean']:.4f} over {r['lane_pairs']} pairs "
           f"[{'OK' if r['gates']['lanes'] else 'FAIL'}]")
-    print(f"lane mismatched pairs (mean|dx|>20, excluded): {len(r['lane_mismatched'])}"
+    print(f"lane mismatched pairs (mean|dx|>20, excluded, max {MAX_MISMATCHED}): {len(r['lane_mismatched'])}"
           + "".join(f"\n    frame {f} lane {l}: {a} vs {b} pts, mean|dx| {d} px" for f, l, a, b, d in r['lane_mismatched']))
     print(f"seg min equal       {r['seg_min_equal']:.5f} over {r['seg_pngs']} PNGs, missing {r['seg_missing']} "
           f"(>=0.99) [{'OK' if r['gates']['seg'] else 'FAIL'}]")

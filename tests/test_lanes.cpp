@@ -35,13 +35,14 @@ double interp(double x, const std::vector<cv::Point2f>& a) {
   return p0.x + (x - p0.y) * (static_cast<double>(p1.x) - p0.x) / (static_cast<double>(p1.y) - p0.y);
 }
 
-// tools/export/validate_polar.py::lane_dx. Returns false when the y-ranges do not overlap.
+// tools/export/validate_polar.py::lane_dx. Returns false when a polyline is empty or the y-ranges do not overlap.
 bool lane_dx(Polyline a, Polyline b, std::vector<double>& out) {
+  if (a.empty() || b.empty()) return false;
   auto byy = [](const cv::Point2f& p, const cv::Point2f& q) { return p.y < q.y; };
   std::sort(a.begin(), a.end(), byy);
   std::sort(b.begin(), b.end(), byy);
   const double lo = std::max(a.front().y, b.front().y), hi = std::min(a.back().y, b.back().y);
-  if (!(hi > lo)) return false;
+  if (!std::isfinite(lo) || !std::isfinite(hi) || !(hi > lo)) return false;  // "no overlap", never NaN
   std::set<float> ys;
   for (auto& p : a) ys.insert(p.y);
   for (auto& p : b) ys.insert(p.y);

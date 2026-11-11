@@ -14,6 +14,8 @@
     Reason for the 99.9% / max 2 tolerance: lanes right at the score threshold can differ by a point or two
     because the `endp*71` end-point rounding falls exactly on .5 (float32 noise between torch and TensorRT).
   - seg: >= 99% equal pixels in every PNG.
+  - Gates cannot pass on an empty comparison: the reference must contain seg PNGs, a reference with lanes must
+    produce at least one matched lane pair, and more than 5 mismatched pairs (mean |dx| > 20) per video fail.
 - `make_reference.sh`: regenerates the Python reference alerts.
 
 ```
