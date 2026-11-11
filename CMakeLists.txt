@@ -28,6 +28,8 @@ add_library(adasvp SHARED
   src/models/yolo_detector.cpp
   src/models/segmenter.cpp
   src/models/lane_detector.cpp
+  src/config.cpp
+  src/pipeline.cpp
   src/track/kalman_xyah.cpp
   src/track/assignment.cpp
   src/track/byte_tracker.cpp
@@ -47,6 +49,9 @@ target_compile_options(adasvp PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wall -Wextra>)
 # the tracker mirrors numpy float32/float64 arithmetic: no fused multiply-add
 set_source_files_properties(src/track/kalman_xyah.cpp src/track/byte_tracker.cpp PROPERTIES COMPILE_OPTIONS -ffp-contract=off)
 set_source_files_properties(src/models/lane_detector.cpp PROPERTIES COMPILE_OPTIONS -ffp-contract=off)
+
+add_executable(adasvp_dump tools/cpp/adasvp_dump.cpp)
+target_link_libraries(adasvp_dump PRIVATE adasvp)
 
 if(ADASVP_BUILD_TESTS)
   enable_testing()

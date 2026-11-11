@@ -11,6 +11,7 @@ add_executable(adasvp_tests
   test_segmenter.cpp
   test_lanes.cpp
   test_tracker.cpp
+  test_pipeline.cpp
 )
 target_include_directories(adasvp_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src

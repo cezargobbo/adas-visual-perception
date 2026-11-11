@@ -8,13 +8,6 @@
 
 namespace adasvp {
 
-struct TrackerParams {
-  float high = 0.25f, low = 0.1f, new_track = 0.25f;
-  int buffer = 30;
-  float match = 0.8f;
-  bool fuse_score = true;
-};
-
 class ByteTracker {
  public:
   // frame_rate is unused (kept for API stability): like Ultralytics 8.4.208 (max_frames_lost = args.track_buffer),
