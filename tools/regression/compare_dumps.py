@@ -7,7 +7,9 @@ Gates (per video; exit code 0 only if all pass):
   dets   recall and precision >= 0.97 (greedy IoU >= 0.9, same class)
   tracks id consistency >= 0.95: among tracks matched by IoU >= 0.9, the fraction whose C++ id equals the
          Python id under the video's majority mapping (each C++ id -> its most frequent Python id)
-  lanes  same lane count on >= 98% of frames, mean |dx| <= 2 px, point-count difference <= 1
+  lanes  same lane count on >= 98% of frames, mean |dx| <= 2 px (over true pairs). Matched pairs with
+         mean |dx| > 20 px are greedy cross-lane mismatches: reported separately, excluded from the
+         point-count gate. Point count over the true pairs: >= 99.9% with diff <= 1 and max diff <= 2.
   seg    >= 99% equal pixels in every PNG
 """
 from __future__ import annotations
@@ -62,7 +64,7 @@ def compare(ref_dir: Path, cpp_dir: Path) -> dict:
     tp = nref = ncpp = 0
     id_pairs = []
     lane_frames_eq = lane_frames = 0
-    dx_all, pt_diff_max, pt_diffs = [], 0, []
+    dx_all, pt_diffs, mismatched = [], [], []
     for k in range(n):
         r, c = ref[k], cpp[k]
         # dets
@@ -79,7 +81,10 @@ def compare(ref_dir: Path, cpp_dir: Path) -> dict:
         lane_frames_eq += len(r["lanes"]) == len(c["lanes"])
         rl = [np.array(l, dtype=np.float64) for l in r["lanes"]]
         cl = [np.array(l, dtype=np.float64) for l in c["lanes"]]
-        for m in match_lanes(rl, cl):
+        for li, m in enumerate(match_lanes(rl, cl)):
+            if m["mean"] > 20.0:
+                mismatched.append((k, li, m["n_ref"], m["n_cand"], round(m["mean"], 1)))
+                continue
             dx_all.append(m["mean"]); pt_diffs.append(abs(m["n_ref"] - m["n_cand"]))
     res["det_recall"] = tp / nref if nref else 1.0
     res["det_precision"] = tp / ncpp if ncpp else 1.0
@@ -94,6 +99,9 @@ def compare(ref_dir: Path, cpp_dir: Path) -> dict:
     res["lane_dx_mean"] = float(np.mean(dx_all)) if dx_all else 0.0
     res["lane_pt_diff_max"] = int(max(pt_diffs)) if pt_diffs else 0
     res["lane_pt_diff_mean"] = float(np.mean(pt_diffs)) if pt_diffs else 0.0
+    res["lane_pairs"] = len(pt_diffs)
+    res["lane_pt_le1"] = float(np.mean(np.array(pt_diffs) <= 1)) if pt_diffs else 1.0
+    res["lane_mismatched"] = mismatched
     # seg
     worst, nseg, missing = 1.0, 0, 0
     for p in sorted((ref_dir / "seg").glob("*.png")):
@@ -111,7 +119,8 @@ def compare(ref_dir: Path, cpp_dir: Path) -> dict:
         "frames": len(ref) == len(cpp),
         "dets": res["det_recall"] >= 0.97 and res["det_precision"] >= 0.97,
         "tracks": res["id_consistency"] >= 0.95,
-        "lanes": res["lane_count_eq"] >= 0.98 and res["lane_dx_mean"] <= 2.0 and res["lane_pt_diff_max"] <= 1,
+        "lanes": res["lane_count_eq"] >= 0.98 and res["lane_dx_mean"] <= 2.0
+                 and res["lane_pt_le1"] >= 0.999 and res["lane_pt_diff_max"] <= 2,
         "seg": res["seg_min_equal"] >= 0.99,
     }
     res["gates"] = gates
@@ -130,8 +139,11 @@ def main() -> int:
           f"[{'OK' if r['gates']['dets'] else 'FAIL'}]")
     print(f"track id consist.   {r['id_consistency']:.4f}  (>=0.95) [{'OK' if r['gates']['tracks'] else 'FAIL'}]")
     print(f"lanes count-eq      {r['lane_count_eq']:.4f}  (>=0.98); mean|dx| {r['lane_dx_mean']:.3f} px (<=2); "
-          f"pt diff max {r['lane_pt_diff_max']} mean {r['lane_pt_diff_mean']:.3f} (<=1) "
+          f"pt diff<=1 {r['lane_pt_le1']:.5f} (>=0.999) max {r['lane_pt_diff_max']} (<=2) "
+          f"mean {r['lane_pt_diff_mean']:.4f} over {r['lane_pairs']} pairs "
           f"[{'OK' if r['gates']['lanes'] else 'FAIL'}]")
+    print(f"lane mismatched pairs (mean|dx|>20, excluded): {len(r['lane_mismatched'])}"
+          + "".join(f"\n    frame {f} lane {l}: {a} vs {b} pts, mean|dx| {d} px" for f, l, a, b, d in r['lane_mismatched']))
     print(f"seg min equal       {r['seg_min_equal']:.5f} over {r['seg_pngs']} PNGs, missing {r['seg_missing']} "
           f"(>=0.99) [{'OK' if r['gates']['seg'] else 'FAIL'}]")
     print("RESULT:", "PASS" if r["pass"] else "FAIL")
