@@ -15,6 +15,10 @@ namespace adasvp {
 // part of the image.
 std::optional<std::vector<double>> lane_x_at(const Polyline& lane, const std::vector<double>& ys, int H);
 
+// np.polyfit(y, x, deg) (scaled Vandermonde least squares via SVD, highest power first) and np.polyval.
+std::vector<double> polyfit(const std::vector<double>& y, const std::vector<double>& x, int deg);
+double polyval(const std::vector<double>& c, double x);
+
 class EgoLaneTracker {
  public:
   EgoLaneTracker(int W, int H, double fps, double cam_height, double horizon_frac, double hold_s, int n_rows = 40);

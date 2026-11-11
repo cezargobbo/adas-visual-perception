@@ -17,6 +17,27 @@ double mean_abs_diff_tail(const Vec& a, const Vec& b, size_t n) {
   return s / static_cast<double>(a.size() - n);
 }
 
+// np.polyder
+Vec polyder(const Vec& c) {
+  const int n = static_cast<int>(c.size()) - 1;
+  Vec d(n);
+  for (int i = 0; i < n; ++i) d[i] = c[i] * (n - i);
+  return d;
+}
+
+double clip(double v, double lo, double hi) { return std::min(std::max(v, lo), hi); }
+
+// np.interp for increasing xp (clamped outside the range)
+double interp(double x, const Vec& xp, const Vec& fp) {
+  if (x <= xp.front()) return fp.front();
+  if (x >= xp.back()) return fp.back();
+  const size_t j = std::upper_bound(xp.begin(), xp.end(), x) - xp.begin();
+  const double slope = (fp[j] - fp[j - 1]) / (xp[j] - xp[j - 1]);
+  return slope * (x - xp[j - 1]) + fp[j - 1];
+}
+
+}  // namespace
+
 // np.polyfit(y, x, deg): scaled Vandermonde least squares (SVD), coefficients highest power first.
 Vec polyfit(const Vec& y, const Vec& x, int deg) {
   const int m = static_cast<int>(y.size()), n = deg + 1;
@@ -44,27 +65,6 @@ double polyval(const Vec& c, double x) {
   for (double v : c) r = r * x + v;
   return r;
 }
-
-// np.polyder
-Vec polyder(const Vec& c) {
-  const int n = static_cast<int>(c.size()) - 1;
-  Vec d(n);
-  for (int i = 0; i < n; ++i) d[i] = c[i] * (n - i);
-  return d;
-}
-
-double clip(double v, double lo, double hi) { return std::min(std::max(v, lo), hi); }
-
-// np.interp for increasing xp (clamped outside the range)
-double interp(double x, const Vec& xp, const Vec& fp) {
-  if (x <= xp.front()) return fp.front();
-  if (x >= xp.back()) return fp.back();
-  const size_t j = std::upper_bound(xp.begin(), xp.end(), x) - xp.begin();
-  const double slope = (fp[j] - fp[j - 1]) / (xp[j] - xp[j - 1]);
-  return slope * (x - xp[j - 1]) + fp[j - 1];
-}
-
-}  // namespace
 
 std::optional<Vec> lane_x_at(const Polyline& lane, const Vec& ys, int H) {
   const size_t n = lane.size();
