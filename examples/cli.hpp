@@ -68,6 +68,10 @@ std::optional<Options> parse_args(int argc, const char* const* argv, std::ostrea
 // Library configuration for the options: profile + overrides. `fps` is the video frame rate.
 Config make_config(const Options& o, double fps);
 
+// The first model the configuration needs (detector, segmenter, lanes; only those that are enabled) that is not a
+// file, as the user-facing error line; nullopt when all are there. Paths resolve like the Pipeline does.
+std::optional<std::string> missing_model_error(const Config& c);
+
 // Output prefix: -o, or outputs/<input name without extension>.
 std::string output_prefix(const Options& o);
 

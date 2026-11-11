@@ -14,6 +14,7 @@ namespace {
 const char* const kHelp = R"HELP(
 usage: video_demo [-h] [-o PREFIX] [--start SEC] [--duration SEC]
                   [--no-combined] [--encoder {auto,nvenc,x264}] [--no-audio]
+                  [--models-dir DIR]
                   [--profile {accurate,fast}] [--no-seg] [--no-det]
                   [--no-lane] [--show [{det,seg,comb}]] [--show-width PX]
                   [--seg-model ONNX] [--seg-size WxH] [--seg-every N]
@@ -63,6 +64,9 @@ input and output:
                         if available (default: auto)
   --no-audio            do not copy the audio of the source video to the
                         outputs
+  --models-dir DIR      directory with the ONNX models (get them with
+                        scripts/download_models.sh); a relative --seg-model /
+                        --det-model name is looked up here (default: models)
 
 what to run:
   --profile {accurate,fast}
@@ -413,6 +417,23 @@ Config make_config(const Options& o, double fps) {
   c.seg_alpha = o.seg_alpha;
   c.show_width = o.show_width;
   return c;
+}
+
+std::optional<std::string> missing_model_error(const Config& c) {
+  struct Need {
+    bool on;
+    const std::string& name;
+  };
+  for (const Need& n : {Need{c.enable_det, c.det_onnx}, Need{c.enable_seg, c.seg_onnx}, Need{c.enable_lanes, c.lane_onnx}}) {
+    if (!n.on) continue;
+    const fs::path p(n.name);
+    const fs::path full = p.is_absolute() ? p : fs::path(c.models_dir) / p;
+    std::error_code ec;
+    if (!fs::exists(full, ec))
+      return "[error] model not found: " + full.string() +
+             " \xE2\x80\x94 run scripts/download_models.sh or pass --models-dir DIR";
+  }
+  return std::nullopt;
 }
 
 std::string output_prefix(const Options& o) {

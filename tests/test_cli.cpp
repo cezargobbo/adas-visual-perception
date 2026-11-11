@@ -171,6 +171,41 @@ TEST_CASE("cli help lists groups and examples and leaves hidden flags out", "[cl
   CHECK(p.out.find("--dry") == std::string::npos);
   CHECK(p.out.find("--adas-debug") == std::string::npos);
   CHECK(p.out.find("--det-precision") == std::string::npos);
+  for (size_t i = p.out.find("--lanes"); i != std::string::npos; i = p.out.find("--lanes", i + 1))
+    CHECK(p.out[i + 7] == '-');  // only --lanes-thr / --lanes-hold, never the hidden no-op --lanes
+}
+
+TEST_CASE("cli help shows --models-dir with its default", "[cli]") {
+  auto p = parse({"-h"});
+  CHECK(p.out.find("--models-dir DIR") != std::string::npos);
+  CHECK(p.out.find("(default: models)") != std::string::npos);
+  auto q = parse({"in.mp4", "--models-dir", "/m"});
+  REQUIRE(q.opt);
+  CHECK(make_config(*q.opt, 30.0).models_dir == "/m");
+}
+
+TEST_CASE("cli reports a missing model without touching the GPU", "[cli]") {
+  namespace fs = std::filesystem;
+  const fs::path dir = fs::temp_directory_path() / "adasvp_empty_models_test";
+  fs::remove_all(dir);
+  fs::create_directories(dir);
+  auto p = parse({"in.mp4", "--profile", "fast", "--models-dir", dir.string()});
+  REQUIRE(p.opt);
+  const Config c = make_config(*p.opt, 30.0);
+  const auto err = missing_model_error(c);
+  REQUIRE(err);
+  CHECK(*err == "[error] model not found: " + (dir / "yolo26s.onnx").string() +
+                    " \xE2\x80\x94 run scripts/download_models.sh or pass --models-dir DIR");
+  // models that are not needed are not checked
+  auto r = parse({"in.mp4", "--models-dir", dir.string(), "--no-det", "--no-lane"});
+  REQUIRE(r.opt);
+  CHECK(*missing_model_error(make_config(*r.opt, 30.0)) ==
+        "[error] model not found: " + (dir / "segformer-b5-cityscapes-1280x720.onnx").string() +
+            " \xE2\x80\x94 run scripts/download_models.sh or pass --models-dir DIR");
+  for (const char* f : {"yolo26s.onnx", "segformer-b1-cityscapes-1024x576.onnx", "polarrcnn_curvelanes_dla34.onnx"})
+    std::ofstream(dir / f) << "x";
+  CHECK(!missing_model_error(c));
+  fs::remove_all(dir);
 }
 
 TEST_CASE("cli --no-det / --no-lane couplings", "[cli]") {

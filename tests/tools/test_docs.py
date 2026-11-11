@@ -1,5 +1,6 @@
 """Documentation checks: every relative link and image in README.md and docs/*.md must resolve to a file."""
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -55,3 +56,42 @@ def test_relative_links_exist():
             if not (f.parent / t).exists():
                 broken.append(f"{f.relative_to(ROOT)}: {t}")
     assert not broken, "broken relative links:\n  " + "\n  ".join(broken)
+
+
+BINARY = ROOT / "build" / "native-release" / "examples" / "video_demo"
+ENGINE_MESSAGE = "[adasvp] building TensorRT engine for "
+
+
+def help_flags(text):
+    """Long option names listed in the option groups of `video_demo --help` (before the prose sections)."""
+    head = text.split("\nprofiles (--profile):", 1)[0]
+    head = head.split("\nhelp:\n", 1)[1]
+    return set(re.findall(r"(?:^|[ ,])(--[a-z][a-z0-9-]*)", "\n".join(l for l in head.splitlines() if l.startswith("  -") or l.startswith("  --"))))
+
+
+def readme_table_flags():
+    text = (ROOT / "README.md").read_text(encoding="utf-8")
+    m = re.search(r"^\| Option \| Default \| What it does \|\n\|[-| ]+\|\n((?:\|.*\n?)+)", text, re.M)
+    assert m, "option table not found in README.md"
+    flags = set()
+    for row in m.group(1).splitlines():
+        cell = row.split("|")[1]
+        flags.update(re.findall(r"`(--[a-z][a-z0-9-]*)", cell))
+    return flags
+
+
+def test_flag_table_matches_help():
+    if not BINARY.exists():
+        pytest.skip("video_demo is not built")
+    r = subprocess.run([str(BINARY), "--help"], capture_output=True, text=True, check=True)
+    want = help_flags(r.stdout) - {"--help"}
+    assert len(want) > 30
+    got = readme_table_flags()
+    assert not want - got, f"flags in --help but not in the README table: {sorted(want - got)}"
+    assert not got - want, f"flags in the README table but not in --help: {sorted(got - want)}"
+
+
+def test_engine_build_message():
+    src = (ROOT / "src" / "trt" / "trt_engine.cpp").read_text(encoding="utf-8")
+    assert ENGINE_MESSAGE in src
+    assert "(first run only, may take several minutes)" in src

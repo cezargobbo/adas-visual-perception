@@ -273,6 +273,8 @@ TrtEngine::TrtEngine(const std::string& onnx_path, Precision p, const std::strin
     }
   }
   if (!impl_->engine) {
+    std::cerr << "[adasvp] building TensorRT engine for " << fs::path(onnx_path).filename().string()
+              << " (first run only, may take several minutes)" << std::endl;
     auto blob = buildSerialized(onnx_path, p, profile);
     writeAtomic(file, blob);
     impl_->engine.reset(impl_->runtime->deserializeCudaEngine(blob.data(), blob.size()));

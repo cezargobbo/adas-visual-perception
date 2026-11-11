@@ -150,6 +150,10 @@ int run(const Options& o) {
     std::cerr << "[error] ffmpeg not found in PATH (needed to write the videos; use --show or --dry to run without it)\n";
     return 1;
   }
+  if (const auto err = missing_model_error(make_config(o, 30.0))) {  // before opening the video / loading models
+    std::cerr << *err << "\n";
+    return 1;
+  }
   cv::VideoCapture cap(o.input);
   if (!cap.isOpened()) {
     std::cerr << "[error] cannot open video: " << o.input << "\n";

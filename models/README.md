@@ -1,6 +1,31 @@
 # Models
 
-Model weights are not stored in this repository (see `.gitignore`). This table lists the origin, license and credit for each model and dataset used.
+Model weights are not stored in this repository (see `.gitignore`).
+
+## Get the models
+
+    scripts/download_models.sh [--profile fast|accurate|all] [--dest DIR]
+
+The script downloads the ONNX models from the GitHub release into `models/` (or `--dest`), checks each sha256
+and only then gives the file its final name. `video_demo` reads them from `models/`; use `--models-dir DIR` for
+another directory.
+
+| File | Profile | Size |
+|---|---|---|
+| `yolo26s.onnx` | fast | 38.8 MB |
+| `segformer-b1-cityscapes-1024x576.onnx` | fast | 54.9 MB |
+| `yolo26x.onnx` | accurate | 224.2 MB |
+| `segformer-b5-cityscapes-1280x720.onnx` | accurate | 339.3 MB |
+| `polarrcnn_curvelanes_dla34.onnx` | fast and accurate | 64.4 MB |
+
+`--profile fast` downloads about 158 MB, `accurate` about 628 MB and `all` (the default) about 722 MB.
+
+To export the models yourself from the original weights, run `tools/setup_models.py` and the scripts in
+`tools/export/` (see [docs/install.md](docs/install.md) and [tools/export/README.md](tools/export/README.md)).
+
+## Licenses and credits
+
+This table lists the origin, license and credit for each model and dataset used.
 
 | Model / dataset | Origin | License | Notes |
 |---|---|---|---|
