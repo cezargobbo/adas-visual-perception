@@ -12,28 +12,16 @@
 #include <vector>
 
 #include "adas/ego_lane.hpp"
+#include "support/trace_json.hpp"
 
 namespace fs = std::filesystem;
 using nlohmann::json;
 using namespace adasvp;
+using adasvp_test::num;
+using adasvp_test::vdiff;
+using adasvp_test::vec;
 
 namespace {
-
-double num(const json& v) {
-  if (v.is_string()) {
-    const std::string s = v.get<std::string>();
-    if (s == "inf") return std::numeric_limits<double>::infinity();
-    if (s == "-inf") return -std::numeric_limits<double>::infinity();
-    return std::numeric_limits<double>::quiet_NaN();
-  }
-  return v.get<double>();
-}
-
-std::vector<double> vec(const json& a) {
-  std::vector<double> r;
-  for (const auto& v : a) r.push_back(num(v));
-  return r;
-}
 
 struct Diffs {
   std::map<std::string, double> maxd;
@@ -42,14 +30,6 @@ struct Diffs {
     if (!(d <= m)) m = d;  // NaN-propagating max
   }
 };
-
-// Max |a-b| of two vectors that must have the same length (infinity when they do not).
-double vdiff(const std::vector<double>& a, const std::vector<double>& b) {
-  if (a.size() != b.size()) return std::numeric_limits<double>::infinity();
-  double m = 0;
-  for (size_t i = 0; i < a.size(); ++i) m = std::max(m, std::fabs(a[i] - b[i]));
-  return m;
-}
 
 // Optional-array field: null in the trace <-> empty / nullopt here.
 double odiff(const json& j, const std::optional<std::vector<double>>& o) {
