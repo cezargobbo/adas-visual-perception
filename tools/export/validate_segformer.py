@@ -41,10 +41,10 @@ def make_runner(backend: str, model: str, fp16: bool = True):
         return lambda x: sess.run(None, {name: x})[0]
     try:
         trt_runner = importlib.import_module("trt_runner")
-    except ModuleNotFoundError:
+    except ImportError as e:  # e.g. the tensorrt wheel is not installed
         sys.exit(
-            "--backend trt needs tools/export/trt_runner.py, which does not exist yet "
-            "(it is created in a later task). Use --backend ort for now."
+            f"--backend trt could not import tools/export/trt_runner.py: {e!r}\n"
+            "Install the requirements (uv pip install -r requirements.txt) or use --backend ort."
         )
     return trt_runner.load_runner(model, fp16=fp16)
 

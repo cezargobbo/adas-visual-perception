@@ -8,7 +8,7 @@ Frames: `frames.sample` over the 3 test videos plus INTERSECTION_FRAMES frames o
 sp1_crop_30fps.mp4 between 58 s and 62 s (intersection, no lane markings).
 Lane distance: |dx| at common y values over the overlapping y-range (np.interp, sorted by y).
 Gates: same lane count in >= 98% of frames; mean |dx| <= 2 px over matched lanes
-(1920x1080 frame); per-lane max |dx| <= 5 px; |n_ref - n_cand| <= 1 point for every
+(dx is measured in the pixels of each frame's own resolution, not rescaled); per-lane max |dx| <= 5 px; |n_ref - n_cand| <= 1 point for every
 matched lane. Lanes with a point-count difference or mean |dx| > 2 px are listed.
 """
 from __future__ import annotations
@@ -33,7 +33,7 @@ sys.path.insert(0, str(ROOT / "reference" / "python"))
 import lanes_polar as lp  # noqa: E402
 
 MIN_COUNT_MATCH = 98.0   # % of frames with the same lane count
-MAX_MEAN_DIST_PX = 2.0   # on a 1920x1080 frame
+MAX_MEAN_DIST_PX = 2.0   # dx in each frame's own pixels (no rescaling)
 MAX_LANE_DIST_PX = 5.0
 MAX_POINT_DIFF = 1
 INTERSECTION_FRAMES = 10
@@ -56,10 +56,10 @@ def make_runner(backend: str, model: str = "polar", fp16: bool = True):
         return lambda x: sess.run(None, {name: x})
     try:
         trt_runner = importlib.import_module("trt_runner")
-    except ModuleNotFoundError:
+    except ImportError as e:  # e.g. the tensorrt wheel is not installed
         sys.exit(
-            "--backend trt needs tools/export/trt_runner.py, which does not exist yet "
-            "(it is created in a later task). Use --backend ort for now."
+            f"--backend trt could not import tools/export/trt_runner.py: {e!r}\n"
+            "Install the requirements (uv pip install -r requirements.txt) or use --backend ort."
         )
     return trt_runner.load_runner(model, fp16=fp16)
 
@@ -84,8 +84,8 @@ def candidate_lanes(runner, frame_bgr: np.ndarray, thr: float = lp.CONF_NMSFREE)
 def lane_dx(a: np.ndarray, b: np.ndarray):
     """|dx| of two lanes at common y values over their overlapping y-range.
 
-    Both lanes are sorted by y and x is linearly interpolated at the y values of the
-    shorter-overlap sample set (union of both lanes' y inside the overlap). Returns the
+    Both lanes are sorted by y and x is linearly interpolated at the union of both
+    lanes' y values that fall inside the overlap. Returns the
     |dx| array, or None if the y-ranges do not overlap.
     """
     a, b = a[np.argsort(a[:, 1])], b[np.argsort(b[:, 1])]
