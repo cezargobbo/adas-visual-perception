@@ -30,6 +30,7 @@ add_library(adasvp SHARED
   src/models/lane_detector.cpp
   src/config.cpp
   src/pipeline.cpp
+  src/adas/ego_lane.cpp
   src/track/kalman_xyah.cpp
   src/track/assignment.cpp
   src/track/byte_tracker.cpp
@@ -48,7 +49,7 @@ target_compile_options(adasvp PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wall -Wextra>)
 # decode_polar mirrors numpy float32 arithmetic: no fused multiply-add
 # the tracker mirrors numpy float32/float64 arithmetic: no fused multiply-add
 set_source_files_properties(src/track/kalman_xyah.cpp src/track/byte_tracker.cpp PROPERTIES COMPILE_OPTIONS -ffp-contract=off)
-set_source_files_properties(src/models/lane_detector.cpp PROPERTIES COMPILE_OPTIONS -ffp-contract=off)
+set_source_files_properties(src/models/lane_detector.cpp src/adas/ego_lane.cpp PROPERTIES COMPILE_OPTIONS -ffp-contract=off)
 
 add_executable(adasvp_dump tools/cpp/adasvp_dump.cpp)
 target_link_libraries(adasvp_dump PRIVATE adasvp opencv_imgcodecs opencv_videoio)
