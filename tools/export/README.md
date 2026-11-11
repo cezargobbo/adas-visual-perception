@@ -51,3 +51,23 @@ min 1x3x320x320, opt 1x3x544x960 (s) / 1x3x736x1280 (x), max 1x3x1280x1280.
     0237d3e6073dfca91c6c53b7c4d70af761fb83248ef8128483e33cee5ce792cf  segformer-b5-cityscapes-1280x720.onnx
     7fef0d6cd24b87b7f503f8f222392e30127eff4a2abe9de48c7cd3dec0dc6e6f  yolo26s.onnx
     52909fe747ae4120ca6c6bf0285e8dcda97fca0d2176d3fbcc0e0b55cbe95399  yolo26x.onnx
+
+## System TensorRT (C++)
+
+Engines built with the system `trtexec` (`/usr/src/tensorrt/bin/trtexec`) from the ONNX files above,
+to confirm the C++ TensorRT can consume them. Engines are written to `cache/trt-cpp/` (git-ignored).
+
+Environment: TensorRT 10.16.1.11 (apt, built for CUDA 13.2), CUDA toolkit 12.9 (`libcudart.so.12.9.79`),
+NVIDIA driver 580.178.04, RTX 4070 Laptop 8 GB. `trtexec` embeds nvinfer and cudart statically (ldd lists only libnvonnxparser); no apt CUDA 13
+install was needed.
+
+| Model | Precision | trtexec | GPU compute mean / median (ms) |
+|---|---|---|---|
+| yolo26s | fp16 | PASSED | 1.54 / 1.54 |
+| yolo26x | fp32 | PASSED | 40.08 / 40.04 |
+| segformer-b1 1024x576 | fp16 | PASSED | 5.70 / 5.68 |
+| segformer-b5 1280x720 | fp16 | PASSED | 43.20 / 42.96 |
+| polarrcnn dla34 | fp32 | PASSED | 3.19 / 3.18 |
+
+YOLO profiles: min `images:1x3x320x320`, opt `1x3x544x960` (s) / `1x3x736x1280` (x),
+max `1x3x1280x1280`. No other process was using the GPU during the measurements.
