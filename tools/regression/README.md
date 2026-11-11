@@ -1,5 +1,8 @@
 # Regression tools
 
+The procedure and a summary of the results are in [docs/regression.md](../../docs/regression.md); this file is the
+detailed tool reference.
+
 - `dump_reference.py`: dumps per-frame results (`frames.jsonl`, `seg/NNNNNN.png`, `meta.json`) of the Python
   reference pipeline.
 - `dump_reference.py ... --adas` also writes `adas.jsonl` (schema below) and an `adas` object in `meta.json`;
