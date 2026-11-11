@@ -40,6 +40,7 @@ done
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [[ -n "$list" ]] || list="$here/videos.txt"
+[[ -f "$list" ]] || { echo "--list: no such file: $list" >&2; exit 2; }
 repo="$(cd "$here/../.." && pwd)"
 cd "$repo"
 py=".venv/bin/python"
@@ -54,7 +55,7 @@ while IFS= read -r rel; do
   stem="$(basename "$rel" .mp4)"
   # a stale CSV must never make a failed run pass
   rm -f "$dest/${stem}_alerts.csv" "$dest/$stem.compare.txt"
-  "$demo" $dry --no-seg --profile "$profile" ${extra[@]+"${extra[@]}"} -o "$dest/$stem" "$videos_dir/$rel" > "$dest/$stem.log" 2>&1
+  "$demo" $dry --no-seg --profile "$profile" ${extra[@]+"${extra[@]}"} -o "$dest/$stem" "$videos_dir/$rel" < /dev/null > "$dest/$stem.log" 2>&1
   demo_rc=$?
   fps=$(grep -o 'total [0-9.]* fps' "$dest/$stem.log" | tail -1 | awk '{print $2}')
   n=$((n + 1))
@@ -70,4 +71,5 @@ while IFS= read -r rel; do
   printf '%-22s %-4s fps=%-6s %s\n' "$stem" "$res" "${fps:-?}" "$(head -1 "$dest/$stem.compare.txt")"
 done < "$list"
 echo "$profile${prec:+ $prec}: $((n - failed))/$n pairs identical, $failed failed"
+[[ $n -gt 0 ]] || { echo "no videos in $list" >&2; exit 2; }
 [[ $failed -eq 0 ]]
