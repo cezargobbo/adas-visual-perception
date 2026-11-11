@@ -37,6 +37,13 @@
   compares the `Renderer` against `outputs/render_ref/STEM_A_B/` (gates: >= 99.5% identical pixels, mean abs
   diff <= 0.5 per channel); `ADASVP_RENDER_OUT=DIR` makes the test keep its own renders.
 - `make_reference.sh`: regenerates the Python reference alerts.
+- `compare_alerts.py REF.csv CPP.csv [--tol 0.5]`: strict event-level comparison of two alert CSVs. Events are matched
+  by `type` + `level_side` within +-tol seconds on `time_s`; prints the pairs, the missing (reference only) and the
+  extra (C++ only) events and exits 0 only when nothing is missing or extra. The tolerance is never loosened.
+- `run_cpp_regression.sh --videos-dir DIR --profile fast|accurate [--dry] [--det-precision fp16|fp32]`: runs
+  `video_demo --no-seg` (the flags of `make_reference.sh`) on the 17 videos of `videos.txt` and runs `compare_alerts.py`
+  against `tests/regression/reference/<profile>/`; one line per video, exit 0 only if all 17 pairs are identical.
+  `--dry` (hidden `video_demo` flag) skips the output videos but still writes `<prefix>_alerts.csv`.
 
 ```
 python tools/regression/dump_reference.py VIDEO --profile fast --out outputs/dumps/fast/STEM
@@ -62,6 +69,8 @@ C++ = `adasvp_dump --no-write` (seg every 30 frames). Python timings are noisy (
 | accurate | red_crop_11_30fps | 750 | 10.9 | 11.6 |
 | accurate | red_crop_12_30fps | 660 | 11.1 | 11.6 |
 | accurate | red_crop_13_30fps | 751 | 11.1 | 12.1 |
+
+(Measured with `adasvp_dump` in an earlier run; the dry-run `video_demo` numbers of the event-level regression below are the current ones.)
 
 ## adas.jsonl schema
 
@@ -89,3 +98,76 @@ repr); non-finite floats are the strings `"inf"`, `"-inf"`, `"nan"`. Boxes are `
 the defaults used, the derived windows (`ego_hold_frames`, `ego_persist`, `fcw_on_n`, `fcw_off_n`, `ldw_on_n`,
 `ldw_off_n`, `ldw_row`, `lead_hold_frames`, `tl_max_lost`) and the tracker geometry (`ego_ys`, `ego_t_row`,
 `ego_wmin`, `ego_wmax`, `ego_gate`).
+
+## Event-level regression: C++ `video_demo` vs Python reference (17 videos x 2 profiles)
+
+`run_cpp_regression.sh --videos-dir DIR --profile P --dry` (RTX 4070 Laptop, dry run = no encoding, `--no-seg`,
+default fp32 detector) against `tests/regression/reference/P/` (strict, +-0.5 s, type + level/side).
+The counts are all alert events (FCW + LDW + RLR). "Python fps" = frames / wall time of the reference run in
+`summary.txt` (model loading and the detections video included, shared GPU: noisy); "C++ fps" = the `total` fps
+printed by `video_demo` at the end of the run (decode + lanes + detection + tracking + ADAS, no encoding).
+
+### Fast profile (default fp32 detector)
+
+| video | frames | ref events | C++ events | matched | borderline | Python fps | C++ fps | result |
+|---|---|---|---|---|---|---|---|---|
+| sp1_crop_30fps | 4786 | 4 | 3 | 3 | 1 | 21.3 | 124.4 | PASS (borderline) |
+| sp1_crop_2_30fps | 1889 | 1 | 1 | 1 | 0 | 20.5 | 124.5 | PASS |
+| sp1_crop_3_30fps | 2510 | 0 | 0 | 0 | 0 | 20.6 | 124.5 | PASS |
+| sp1_crop_4_30fps | 4751 | 7 | 7 | 7 | 0 | 21.4 | 126.5 | PASS |
+| red_crop_1_30fps | 600 | 0 | 0 | 0 | 0 | 19.4 | 126.7 | PASS |
+| red_crop_2_30fps | 451 | 1 | 1 | 1 | 0 | 17.3 | 123.3 | PASS |
+| red_crop_3_30fps | 421 | 1 | 1 | 1 | 0 | 16.2 | 123.3 | PASS |
+| red_crop_4_30fps | 480 | 1 | 1 | 1 | 0 | 17.1 | 142.6 | PASS |
+| red_crop_5_30fps | 2880 | 2 | 2 | 2 | 0 | 22.2 | 147.3 | PASS |
+| red_crop_6_30fps | 601 | 1 | 1 | 1 | 0 | 18.8 | 141.4 | PASS |
+| red_crop_7_30fps | 450 | 1 | 1 | 1 | 0 | 16.1 | 120.3 | PASS |
+| red_crop_8_30fps | 360 | 1 | 1 | 1 | 0 | 18.9 | 158.4 | PASS |
+| red_crop_9_30fps | 479 | 1 | 1 | 1 | 0 | 17.1 | 159.3 | PASS |
+| red_crop_10_30fps | 390 | 1 | 1 | 1 | 0 | 17.7 | 161.0 | PASS |
+| red_crop_11_30fps | 750 | 1 | 1 | 1 | 0 | 17.9 | 118.3 | PASS |
+| red_crop_12_30fps | 660 | 1 | 1 | 1 | 0 | 17.4 | 121.0 | PASS |
+| red_crop_13_30fps | 751 | 1 | 1 | 1 | 0 | 17.9 | 122.7 | PASS |
+
+`fps (all 17 videos, frames-weighted): Python 20.1, C++ 129.2`
+
+
+### Accurate profile (fp32 detector; fp16 experiment in the last two columns)
+
+| video | frames | ref events | C++ events | matched | borderline | Python fps | C++ fps (fp32) | result | C++ fps (fp16) | fp16 matched/ref |
+|---|---|---|---|---|---|---|---|---|---|---|
+| sp1_crop_30fps | 4786 | 5 | 5 | 5 | 0 | 11.2 | 20.4 | PASS | 48.0 | 5/5 |
+| sp1_crop_2_30fps | 1889 | 1 | 1 | 1 | 0 | 11.0 | 20.4 | PASS | 48.2 | 1/1 |
+| sp1_crop_3_30fps | 2510 | 0 | 0 | 0 | 0 | 11.0 | 20.2 | PASS | 47.6 | 0/0 |
+| sp1_crop_4_30fps | 4751 | 7 | 7 | 7 | 0 | 11.4 | 20.1 | PASS | 47.9 | 7/7 |
+| red_crop_1_30fps | 600 | 0 | 0 | 0 | 0 | 10.9 | 19.9 | PASS | 48.0 | 0/0 |
+| red_crop_2_30fps | 451 | 1 | 1 | 1 | 0 | 9.8 | 20.4 | PASS | 47.6 | 1/1 |
+| red_crop_3_30fps | 421 | 1 | 1 | 1 | 0 | 10.0 | 20.2 | PASS | 47.5 | 1/1 |
+| red_crop_4_30fps | 480 | 1 | 1 | 1 | 0 | 10.4 | 20.5 | PASS | 50.9 | 1/1 |
+| red_crop_5_30fps | 2880 | 2 | 2 | 2 | 0 | 15.6 | 20.6 | PASS | 51.3 | 2/2 |
+| red_crop_6_30fps | 601 | 1 | 1 | 1 | 0 | 22.3 | 20.5 | PASS | 50.9 | 1/1 |
+| red_crop_7_30fps | 450 | 1 | 1 | 1 | 0 | 19.6 | 19.9 | PASS | 46.8 | 1/1 |
+| red_crop_8_30fps | 360 | 1 | 1 | 1 | 0 | 21.2 | 20.6 | PASS | 51.2 | 1/1 |
+| red_crop_9_30fps | 479 | 1 | 1 | 1 | 0 | 21.8 | 20.7 | PASS | 51.0 | 1/1 |
+| red_crop_10_30fps | 390 | 1 | 1 | 1 | 0 | 21.7 | 20.6 | PASS | 51.0 | 1/1 |
+| red_crop_11_30fps | 750 | 1 | 1 | 1 | 0 | 21.4 | 19.9 | PASS | 47.6 | 1/1 |
+| red_crop_12_30fps | 660 | 1 | 1 | 1 | 0 | 20.6 | 19.9 | PASS | 49.0 | 1/1 |
+| red_crop_13_30fps | 751 | 1 | 1 | 1 | 0 | 21.5 | 19.9 | PASS | 49.5 | 1/1 |
+
+`fps (all 17 videos, frames-weighted): Python 12.7, C++ fp32 20.3, C++ fp16 48.6`
+
+Results: 33 of 34 pairs are identical event by event (tolerance +-0.5 s, nothing loosened). The only strict failure
+is the fast profile `sp1_crop_30fps` (FCW warning @ 127.96 s, frame 3835, missing in C++), classified BORDERLINE
+with `compare_dumps.py --adas` on the per-frame traces (regenerated with the current C++ build): the smoothed TTC
+minimum around the event is 2.664 s in Python and 2.659 s in C++ (not fired), against the 2.7 s threshold; the
+rule is `ttc <= 1.02 x threshold` (2.754 s) within +-0.5 s. All other events of that video (FCW @ 4656, LDW left
+@ 4593, LDW right @ 4749) match at dt 0.000 s. The accurate profile matches all 17 videos strictly, with no
+borderline case. Per-video outputs of the runs: `outputs/cpp_regression/<profile>[_fp16]/` (gitignored).
+
+### fp16 detector (accurate profile, `--det-precision fp16`)
+
+All 17 pairs pass strictly (17/17 identical events, no borderline), with 48.6 fps against 20.3 fps for fp32 in the
+dry run (2.4x; the fp16 TensorRT engine of yolo26x takes about 10 min to build the first time, then it is cached).
+The default of the accurate profile stays fp32: switching it to fp16 is a decision for the maintainers.
+Recording the accurate-profile videos (`--no-seg`, with encoding) ran at 11.5-13 fps in fp32 because Python
+dumps shared the GPU at the same time; the dry-run numbers above are the reference.
