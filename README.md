@@ -41,8 +41,7 @@ configure needs network access.
     cmake --build build/native-release -j
     ctest --test-dir build/native-release --output-on-failure
 
-The preset uses `/usr/local/cuda/bin/nvcc`. For another CUDA toolkit override it on the command line
-(the `CUDACXX` environment variable has no effect because the preset sets the cache variable):
+The preset uses `/usr/local/cuda/bin/nvcc`. For another CUDA toolkit override it on the command line:
 
     cmake --preset native-release -DCMAKE_CUDA_COMPILER=/path/to/nvcc
 
