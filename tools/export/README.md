@@ -53,10 +53,15 @@ SegFormer ORT gate was 99.5% (TensorRT: 99%).
 
 ## Chosen precision
 
+The detection-gate table above is the Plan 1 history: yolo26x fp16 failed that per-frame gate (worst resolution
+0.941 precision), so fp32 was chosen then. The accurate profile later switched to fp16 after the event-level
+regression passed 17/17 strict with no borderline case; fp32 remains available with the hidden
+`--det-precision fp32`.
+
 | Model | Precision |
 |---|---|
 | yolo26s | fp16 |
-| yolo26x | fp32 |
+| yolo26x | fp16 (event-level regression 17/17 strict, 0 borderline; see [tools/regression/README.md](../regression/README.md)) |
 | segformer-b1 | fp16 |
 | segformer-b5 | fp16 |
 | polarrcnn | fp32 |

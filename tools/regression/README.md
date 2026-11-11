@@ -9,7 +9,10 @@
   `tests/fixtures/tl_state_expected.json`.
 - `adasvp_dump` (built from `tools/cpp/adasvp_dump.cpp`): writes the same format from the C++ `Pipeline`.
   `--no-write` skips all output (used for the fps numbers below). `--adas` also writes `adas.jsonl` (same schema as
-  below, outputs only: `i`, `t`, `ego`, `lead`, `fcw`, `ldw` (+`mon`), `rlr`).
+  below, outputs only: `i`, `t`, `ego`, `lead`, `fcw`, `ldw` (+`mon`), `rlr`). The hidden
+  `--det-precision fp16|fp32` overrides the detector engine precision of the profile (the accurate profile defaults
+  to fp16 since the event-level regression below); use `--det-precision fp32` to rerun the detection-gate
+  comparison against the fp32 reference as in Plan 2.
 - `compare_dumps.py REF_DIR CPP_DIR`: prints and gates one video (exit 0 only if every gate passes):
   - dets: recall and precision >= 0.97 (IoU >= 0.9, same class);
   - tracks: id consistency >= 0.95 (majority C++ id -> Python id mapping over IoU-matched tracks);
@@ -65,12 +68,12 @@ C++ = `adasvp_dump --no-write` (seg every 30 frames). Python timings are noisy (
 | fast | red_crop_11_30fps | 750 | 24.3 | 65.7 |
 | fast | red_crop_12_30fps | 660 | 24.2 | 66.4 |
 | fast | red_crop_13_30fps | 751 | 24.6 | 66.4 |
-| accurate | sp1_crop_30fps (30 s) | 899 | 11.2 | 11.9 |
-| accurate | red_crop_11_30fps | 750 | 10.9 | 11.6 |
-| accurate | red_crop_12_30fps | 660 | 11.1 | 11.6 |
-| accurate | red_crop_13_30fps | 751 | 11.1 | 12.1 |
+| accurate (fp32) | sp1_crop_30fps (30 s) | 899 | 11.2 | 11.9 |
+| accurate (fp32) | red_crop_11_30fps | 750 | 10.9 | 11.6 |
+| accurate (fp32) | red_crop_12_30fps | 660 | 11.1 | 11.6 |
+| accurate (fp32) | red_crop_13_30fps | 751 | 11.1 | 12.1 |
 
-(Measured with `adasvp_dump --no-write`, which runs the SegFormer segmentation every 30 frames, against Python dumps with `--seg-every 30`. The `video_demo --dry --no-seg` numbers of the event-level regression below skip segmentation, so the two tables are not directly comparable; the dry-run numbers are the current ones.)
+(The accurate rows were measured with the fp32 detector engine, the profile default at the time; the fp16 default is faster, see the event-level section. Measured with `adasvp_dump --no-write`, which runs the SegFormer segmentation every 30 frames, against Python dumps with `--seg-every 30`. The `video_demo --dry --no-seg` numbers of the event-level regression below skip segmentation, so the two tables are not directly comparable; the dry-run numbers are the current ones.)
 
 ## adas.jsonl schema
 

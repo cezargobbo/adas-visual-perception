@@ -60,6 +60,21 @@ unless `models/` is populated and `ADASVP_VIDEOS_DIR` points to your clips. Tens
 first use (minutes) and cached in `${XDG_CACHE_HOME:-$HOME/.cache}/adasvp/engines`. Use `-DADASVP_BUILD_TESTS=OFF`
 to skip the tests.
 
+### What the tests cover
+
+- Always run (no models needed): Config/CLI, the 60 traffic-light fixtures, the synthetic RLR / FCW / lead / ego
+  tests and the LDW-label render test.
+- Need models and videos (`models/` and `ADASVP_VIDEOS_DIR`): the pipeline and regression tests.
+- Additionally need gitignored traces (skipped when missing): the trace-replay tests read
+  `outputs/dumps/fast/<stem>/adas.jsonl` for `sp1_crop_30fps`, `sp1_crop_4_30fps` and `red_crop_11_30fps`, made with
+  `python tools/regression/dump_reference.py VIDEO --profile fast --adas --out outputs/dumps/fast/STEM`; the
+  Renderer comparison reads `outputs/render_ref/`, made with
+  `python tools/regression/render_reference.py --trace DIR --frames A:B --out OUT` (see
+  [tools/regression/README.md](tools/regression/README.md)).
+- Last recorded full run: 70/70 executed, none skipped.
+- Configuring with the examples enabled fetches CLI11 unless it is installed, so it may need network access
+  (`-DADASVP_BUILD_EXAMPLES=OFF` avoids it).
+
 ## Run the comparison
 
 `adasvp_dump` writes the same per-frame dump as the Python reference and `compare_dumps.py` gates the two against each

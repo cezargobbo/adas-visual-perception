@@ -380,8 +380,8 @@ Segment segment(double start_s, std::optional<double> duration_s, double fps, in
 
 Config make_config(const Options& o, double fps) {
   Config c = o.profile == "fast" ? Config::fast() : Config::accurate();
-  // Default models location: Config::models_dir ("models", relative to the working directory; spec section 7).
-  // Nothing comes from environment variables (spec section 11).
+  // Default models location: Config::models_dir ("models", relative to the working directory).
+  // Nothing is read from environment variables; use --models-dir to point elsewhere.
   if (o.models_dir) c.models_dir = *o.models_dir;
   if (o.det_model) c.det_onnx = model_arg(*o.det_model);
   if (o.seg_model) c.seg_onnx = model_arg(*o.seg_model);

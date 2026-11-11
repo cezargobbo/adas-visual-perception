@@ -15,7 +15,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 option(ADASVP_BUILD_TESTS "Build the C++ tests" ${PROJECT_IS_TOP_LEVEL})
-option(ADASVP_BUILD_EXAMPLES "Build the video_demo example" ON)
+option(ADASVP_BUILD_EXAMPLES "Build the video_demo example" ${PROJECT_IS_TOP_LEVEL})
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 

@@ -92,7 +92,7 @@ enum class LightColor { Unknown, Red, Yellow, Green };
 struct TrafficLight {
   Box box;
   float score = 0.f;
-  int track_id = -1;
+  int track_id = -1;  // from the dedicated traffic-light tracker, NOT ByteTrack: does not match the ids in FrameResult::objects
   LightColor color = LightColor::Unknown;
 };
 
@@ -127,7 +127,9 @@ struct FrameResult {
   // ADAS (filled when the corresponding modules are enabled; idle values otherwise)
   std::optional<LeadVehicle> lead;
   EgoLane ego_lane;
-  std::vector<TrafficLight> lights;  // traffic-light detections (class 9) with their colour
+  // Traffic-light detections (class 9) with their colour. Filled only when the RLR monitor runs
+  // (Config::enable_rlr and enable_det); empty otherwise.
+  std::vector<TrafficLight> lights;
   std::vector<Alert> alerts;         // events that are new in this frame
   FcwStatus fcw;
   LdwStatus ldw;
@@ -184,7 +186,11 @@ struct Config {
   double lanes_hold = 2.5;    // seconds the last good lane is held when nothing is detected
   bool lane_corridor = true;  // use the ego lane (when available) as the lead-vehicle corridor
 
-  // ADAS modules and thresholds
+  // ADAS modules and thresholds.
+  // Dependencies: FCW and RLR need detection (enable_det); LDW and the lane corridor need lanes (enable_lanes).
+  // Timing: every window (FCW, LDW, lane hold, lead hold, RLR) is a frame count derived from frame_rate, so the
+  // logic assumes a constant frame rate. A variable frame interval (e.g. a live camera with jitter) is a known
+  // limitation.
   bool enable_fcw = true, enable_ldw = true, enable_rlr = true;
   double fcw_ttc = 2.7, fcw_ttc_critical = 1.5;  // seconds
   double ldw_margin = 0.25, ldw_car_width = 1.8;  // metres
@@ -209,9 +215,13 @@ class Pipeline {
   Pipeline(Pipeline&&) noexcept;
   Pipeline& operator=(Pipeline&&) noexcept;
 
-  // Detection + tracking, segmentation (every cfg.seg_every frames, the last map is reused in between)
-  // and lanes. Frames may change resolution between calls (the tracker, the segmentation map and the
-  // frame counter are reset when they do).
+  // Detection + tracking, segmentation (every cfg.seg_every frames, the last map is reused in between),
+  // lanes, and the ADAS outputs (lead vehicle, ego lane, FCW, LDW, RLR, alerts; see FrameResult).
+  // Frames may change resolution between calls: the tracker, the segmentation map, the frame counter, the
+  // ADAS monitors and stats() are reset when they do (same as reset()).
+  //
+  // Timing: t_seconds must increase monotonically. All ADAS windows are frame counts derived from
+  // Config::frame_rate, so a constant frame rate is assumed.
   //
   // Threading: process() is not thread-safe; never call it concurrently on one Pipeline (use one
   // Pipeline per thread). Errors: a CUDA error thrown by process() leaves the Pipeline unusable;
@@ -220,11 +230,11 @@ class Pipeline {
   // keep or modify it freely.
   FrameResult process(const cv::Mat& bgr, double t_seconds);
 
-  // Clears the tracker (track ids restart at 1), the cached segmentation map and the frame counter
-  // (the next frame runs segmentation). Call it between unrelated videos of the same resolution.
+  // Clears the tracker (track ids restart at 1), the cached segmentation map, the frame counter
+  // (the next frame runs segmentation), the ADAS monitors and the stats(). Call it between unrelated videos of the same resolution.
   void reset();
 
-  // Event counters and LDW statistics accumulated since construction or the last reset().
+  // Event counters and LDW statistics accumulated since construction or the last reset() / frame-size change.
   const AdasStats& stats() const;
 
  private:

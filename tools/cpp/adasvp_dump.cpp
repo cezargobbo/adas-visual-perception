@@ -26,7 +26,8 @@ using namespace adasvp;
 namespace {
 void usage() {
   std::cerr << "Usage: adasvp_dump <video> --profile fast|accurate --out DIR [--start S] [--duration D]\n"
-               "                   [--seg-every N] [--models-dir DIR] [--no-write] [--adas]\n";
+               "                   [--seg-every N] [--models-dir DIR] [--no-write] [--adas]\n"
+               "                   [--det-precision fp16|fp32]\n";
 }
 
 void num(std::ostream& o, double v) {
@@ -110,7 +111,7 @@ std::string adas_line(int i, const FrameResult& r) {
 }  // namespace
 
 int main(int argc, char** argv) {
-  std::string video, profile, out, models_dir;
+  std::string video, profile, out, models_dir, det_precision;
   double start = 0, duration = -1;
   int seg_every = 30;
   bool no_write = false, adas = false;
@@ -126,6 +127,7 @@ int main(int argc, char** argv) {
     else if (a == "--duration") duration = std::stod(next());
     else if (a == "--seg-every") seg_every = std::stoi(next());
     else if (a == "--models-dir") models_dir = next();
+    else if (a == "--det-precision") det_precision = next();
     else if (a == "--no-write") no_write = true;
     else if (a == "--adas") adas = true;
     else if (a == "-h" || a == "--help") { usage(); return 0; }
@@ -134,6 +136,11 @@ int main(int argc, char** argv) {
   }
   if (seg_every < 1) {
     std::cerr << "--seg-every must be >= 1\n";
+    usage();
+    return 2;
+  }
+  if (!det_precision.empty() && det_precision != "fp16" && det_precision != "fp32") {
+    std::cerr << "--det-precision must be fp16 or fp32\n";
     usage();
     return 2;
   }
@@ -156,6 +163,7 @@ int main(int argc, char** argv) {
   Config cfg = profile == "fast" ? Config::fast() : Config::accurate();
   if (!models_dir.empty()) cfg.models_dir = models_dir;
   else if (const char* e = std::getenv("ADASVP_MODELS_DIR")) cfg.models_dir = e;
+  if (!det_precision.empty()) cfg.det_precision = det_precision == "fp32" ? Precision::FP32 : Precision::FP16;
   cfg.seg_every = seg_every;
   cfg.frame_rate = fps;  // sizes the ADAS windows, like the fps of the reference loop
   std::unique_ptr<Pipeline> pipe_ptr;
