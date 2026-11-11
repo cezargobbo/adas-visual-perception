@@ -15,12 +15,3 @@ red_crop_10_30fps time=18s FCW=0 LDW=0 RLR=1
 red_crop_11_30fps time=35s FCW=0 LDW=0 RLR=1
 red_crop_12_30fps time=32s FCW=0 LDW=0 RLR=1
 red_crop_13_30fps time=35s FCW=0 LDW=0 RLR=1
-
-Differences vs. 2026-11-10 runs (accurate profile; RLR vs. outputs/rlr/run_summary.txt):
-- RLR: all 13 videos match the history exactly (c1 none, c2 7.77, c3 8.73, c4 9.13, c5 9.13 and 90.30,
-  c6 10.77, c7 9.47, c8 7.17, c9 10.47, c10 7.83, c11 15.53, c12 15.23, c13 15.53). No differences.
-- sp1 FCW/LDW (history CSVs, fast-like): accurate differs from them by design:
-  sp1_crop_30fps: FCW at 30.63, 88.49, 127.23 (history CSV 127.96, 155.36); LDW 153.25 and 158.46 same.
-  sp1_crop_2_30fps: FCW 18.39 same time (ttc 2.16 vs 2.26).
-  sp1_crop_3_30fps: none, same. sp1_crop_4_30fps: LDW same x3; FCW 34.93, 65.30, 67.23, 157.92
-  (history 34.93, 35.30 critical, 67.23, 158.26).

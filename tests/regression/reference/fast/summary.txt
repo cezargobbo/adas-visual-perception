@@ -15,15 +15,3 @@ red_crop_10_30fps time=22s FCW=0 LDW=0 RLR=1
 red_crop_11_30fps time=42s FCW=0 LDW=0 RLR=1
 red_crop_12_30fps time=38s FCW=0 LDW=0 RLR=1
 red_crop_13_30fps time=42s FCW=0 LDW=0 RLR=1
-
-Determinism: red_crop_2_30fps --profile fast --no-seg run twice with different output prefixes
-gave byte-identical alerts CSVs (diff empty).
-
-Differences vs. 2026-11-10 runs (fast profile; sp1 FCW/LDW compared with outputs/adas/*_alerts.csv):
-- sp1_crop_30fps, sp1_crop_2_30fps, sp1_crop_3_30fps, sp1_crop_4_30fps: identical event times, frames,
-  types, levels and TTC values (lead_id/lead_dist may differ). No differences.
-- The only change is the new red_for_s CSV column (RLR) and RLR events, which did not exist then.
-- RLR (fast) vs. 2026-11-10 RLR run: c8 7.13 s (history 7.17), c9 10.50 s (history 10.47); all other
-  videos match exactly (c1 none; c5 9.13 and 90.30).
-- Note: the history run_summary-style line for sp1_crop_30fps said FCW 3 but its CSV has 2 FCW; the
-  accurate profile yields 3 FCW (30.63, 88.49, 127.23), so that line likely came from accurate.
