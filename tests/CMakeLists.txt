@@ -7,6 +7,7 @@ FetchContent_MakeAvailable(Catch2)
 add_executable(adasvp_tests
   test_trt_engine.cpp
   test_preprocess.cpp
+  test_yolo.cpp
 )
 target_include_directories(adasvp_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src
@@ -14,6 +15,8 @@ target_include_directories(adasvp_tests PRIVATE
 target_compile_definitions(adasvp_tests PRIVATE ADASVP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 target_link_libraries(adasvp_tests PRIVATE adasvp Catch2::Catch2WithMain
   TensorRT::nvinfer CUDA::cudart)
+find_package(nlohmann_json REQUIRED)
+target_link_libraries(adasvp_tests PRIVATE nlohmann_json::nlohmann_json)
 
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(CTest)

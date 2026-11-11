@@ -25,6 +25,7 @@ find_package(TensorRT REQUIRED)
 add_library(adasvp SHARED
   src/trt/trt_engine.cpp
   src/preprocess/letterbox.cpp
+  src/models/yolo_detector.cpp
   src/preprocess/kernels.cu
 )
 target_include_directories(adasvp
