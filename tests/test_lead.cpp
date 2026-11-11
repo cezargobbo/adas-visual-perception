@@ -1,7 +1,9 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
 #include <cmath>
+#include <deque>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -148,7 +150,7 @@ TEST_CASE("trapezoid corridor is used without a lane and gates candidates") {
   CHECK(!est.in_corridor(Box{100, 600, 200, 700}, &none));
 }
 
-TEST_CASE("update: non-vehicles are ignored, hysteresis, hold and median/EMA per track") {
+TEST_CASE("update: non-vehicles are ignored, hysteresis, lead switch") {
   auto est = make_est(1920, 1080, 3);
   // person (cls 0) and an off-corridor car -> no lead
   CHECK(!est.update({car(1, 900, 600, 1020, 700, 0), car(2, 100, 600, 200, 700)}, nullptr));
@@ -163,10 +165,48 @@ TEST_CASE("update: non-vehicles are ignored, hysteresis, hold and median/EMA per
   auto c = est.update({car(3, 900, 600, 1020, 700), car(4, 905, 600, 1025, 760)}, nullptr);
   REQUIRE(c);
   CHECK(c->track_id == 4);
-  // Loss: nullopt every frame; after hold_frames+1 misses the lead id is dropped, so a farther car is then
-  // accepted without hysteresis (it is the only candidate either way).
-  for (int k = 0; k < 4; ++k) CHECK(!est.update({}, nullptr));
-  auto d = est.update({car(3, 900, 600, 1020, 700)}, nullptr);
-  REQUIRE(d);
-  CHECK(d->track_id == 3);
+}
+
+TEST_CASE("update: per-track median window (9) and EMA 0.8/0.2 on a hand-computed sequence") {
+  auto est = make_est(1920, 1080, 3);
+  // y2 sequence -> distances; the independent model below is median of the last 9 then EMA.
+  const float y2s[] = {700, 705, 690, 760, 695, 700, 702, 698, 701, 699, 703};
+  std::deque<double> win;
+  double ema = 0;
+  bool first = true;
+  for (float y2 : y2s) {
+    const Box bx{900, 600, 1020, y2};
+    const double z = est.distance(bx, 2);
+    win.push_back(z);
+    if (win.size() > 9) win.pop_front();
+    std::vector<double> v(win.begin(), win.end());
+    std::sort(v.begin(), v.end());
+    const double zm = v.size() % 2 ? v[v.size() / 2] : 0.5 * (v[v.size() / 2 - 1] + v[v.size() / 2]);
+    ema = first ? zm : 0.8 * ema + 0.2 * zm;
+    first = false;
+    auto r = est.update({car(3, 900, 600, 1020, y2)}, nullptr);
+    REQUIRE(r);
+    CHECK(r->distance_m == Catch::Approx(ema).margin(1e-9));
+  }
+}
+
+TEST_CASE("update: the lead is held for hold_frames misses, then dropped") {
+  // car 4 is slightly closer than car 3 (< 3% H), so it only wins once the lead id of car 3 is forgotten.
+  const std::vector<Object> both = {car(3, 900, 600, 1020, 700), car(4, 905, 600, 1025, 720)};
+  {
+    auto est = make_est(1920, 1080, 3);
+    REQUIRE(est.update({car(3, 900, 600, 1020, 700)}, nullptr));
+    for (int k = 0; k < 3; ++k) CHECK(!est.update({}, nullptr));  // missing_ == hold_frames: still held
+    auto r = est.update(both, nullptr);
+    REQUIRE(r);
+    CHECK(r->track_id == 3);
+  }
+  {
+    auto est = make_est(1920, 1080, 3);
+    REQUIRE(est.update({car(3, 900, 600, 1020, 700)}, nullptr));
+    for (int k = 0; k < 4; ++k) CHECK(!est.update({}, nullptr));  // missing_ > hold_frames: id dropped
+    auto r = est.update(both, nullptr);
+    REQUIRE(r);
+    CHECK(r->track_id == 4);
+  }
 }

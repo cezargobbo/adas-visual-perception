@@ -227,8 +227,7 @@ TEST_CASE("Renderer omits the LDW status label when LDW is disabled") {
   CHECK(cv::countNonZero(diff(label).clone().reshape(1)) > 0);
   // with the label off, the label box holds only the lane fill: same as the frame region blended by the lane
   // polygon, which is absent at x < 400, so those pixels are the untouched frame
-  const cv::Rect left(12, H - 46 - 30, 170, 32);
-  cv::Mat untouched = frame(left).clone(), got = without(left).clone();
+  cv::Mat untouched = frame(label).clone(), got = without(label).clone();
   cv::absdiff(untouched, got, diff);
   CHECK(cv::countNonZero(diff.reshape(1)) == 0);
 }
