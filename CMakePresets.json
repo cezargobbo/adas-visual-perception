@@ -1,0 +1,26 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 24, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "native-release",
+      "displayName": "Native Release",
+      "binaryDir": "${sourceDir}/build/native-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CUDA_ARCHITECTURES": "native",
+        "CMAKE_CUDA_COMPILER": "/usr/local/cuda/bin/nvcc"
+      }
+    },
+    {
+      "name": "native-debug",
+      "displayName": "Native Debug",
+      "binaryDir": "${sourceDir}/build/native-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CUDA_ARCHITECTURES": "native",
+        "CMAKE_CUDA_COMPILER": "/usr/local/cuda/bin/nvcc"
+      }
+    }
+  ]
+}
