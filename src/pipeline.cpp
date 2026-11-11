@@ -38,6 +38,7 @@ struct Pipeline::Impl {
   std::unique_ptr<ByteTracker> tracker;
   cv::Mat seg_map;
   long frame_index = 0;
+  AdasStats adas_stats;  // filled by the ADAS modules
   cv::Size last_size;
   std::vector<int> classes{0, 1, 2, 3, 5, 7, 9};
 
@@ -66,6 +67,7 @@ struct Pipeline::Impl {
     if (det) tracker = std::make_unique<ByteTracker>(cfg.tracker, cfg.frame_rate);
     seg_map.release();
     frame_index = 0;
+    adas_stats = AdasStats{};
   }
   ~Impl() {
     det.reset();
@@ -79,6 +81,8 @@ Pipeline::Pipeline(const Config& cfg) : impl_(std::make_unique<Impl>(cfg)) {}
 Pipeline::~Pipeline() = default;
 Pipeline::Pipeline(Pipeline&&) noexcept = default;
 Pipeline& Pipeline::operator=(Pipeline&&) noexcept = default;
+
+const AdasStats& Pipeline::stats() const { return impl_->adas_stats; }
 
 void Pipeline::reset() {
   impl_->reset();

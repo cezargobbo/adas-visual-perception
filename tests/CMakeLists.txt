@@ -12,6 +12,7 @@ add_executable(adasvp_tests
   test_lanes.cpp
   test_tracker.cpp
   test_pipeline.cpp
+  test_config.cpp
 )
 target_include_directories(adasvp_tests PRIVATE
   ${PROJECT_SOURCE_DIR}/src

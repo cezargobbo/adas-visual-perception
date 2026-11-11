@@ -1,0 +1,62 @@
+{
+  "defaults": {
+    "adas_debug": null,
+    "alert_display": 2.0,
+    "cam_height": 1.5,
+    "conf": 0.3,
+    "corridor_bottom": 0.12,
+    "corridor_top": 0.02,
+    "det_imgsz": null,
+    "det_model": null,
+    "dry": false,
+    "duration": null,
+    "encoder": "auto",
+    "fcw_ttc": 2.7,
+    "fcw_ttc_critical": 1.5,
+    "hfov": 75.0,
+    "horizon": 0.59,
+    "lanes": false,
+    "lanes_hold": 2.5,
+    "lanes_thr": 0.44,
+    "ldw_car_width": 1.8,
+    "ldw_margin": 0.25,
+    "no_audio": false,
+    "no_combined": false,
+    "no_det": false,
+    "no_fcw": false,
+    "no_lane": false,
+    "no_lane_corridor": false,
+    "no_ldw": false,
+    "no_legend": false,
+    "no_rlr": false,
+    "no_seg": false,
+    "out_prefix": null,
+    "profile": "accurate",
+    "rlr_zone": [
+      0.25,
+      0.75
+    ],
+    "seg_alpha": 0.45,
+    "seg_every": 1,
+    "seg_model": null,
+    "seg_size": null,
+    "show": null,
+    "show_width": 1280,
+    "start": 0.0,
+    "tracker": "bytetrack.yaml"
+  },
+  "profiles": {
+    "accurate": {
+      "det_imgsz": 1280,
+      "det_model": "yolo26x.pt",
+      "seg_model": "segformer-b5-cityscapes",
+      "seg_size": "1280x720"
+    },
+    "fast": {
+      "det_imgsz": 960,
+      "det_model": "yolo26s.pt",
+      "seg_model": "segformer-b1-cityscapes",
+      "seg_size": "1024x576"
+    }
+  }
+}
