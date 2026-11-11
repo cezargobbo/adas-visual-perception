@@ -7,6 +7,7 @@ C++ build produces with ``trtexec``.
 from __future__ import annotations
 
 import hashlib
+import os
 import sys
 import time
 from pathlib import Path
@@ -59,7 +60,12 @@ class TrtModel:
         self.fp16 = fp16
         cache = Path(cache_dir)
         cache.mkdir(parents=True, exist_ok=True)
-        key = f"{_sha12(self.onnx_path)}-{'fp16' if fp16 else 'fp32'}-trt{trt.__version__}"
+        # The key covers everything that changes the built engine: ONNX content, precision,
+        # TensorRT version, optimisation profile shapes and the GPU model.
+        extra = hashlib.sha256(
+            (repr(sorted((profiles or {}).items())) + torch.cuda.get_device_name()).encode()
+        ).hexdigest()[:8]
+        key = f"{_sha12(self.onnx_path)}-{'fp16' if fp16 else 'fp32'}-trt{trt.__version__}-{extra}"
         plan = cache / f"{self.onnx_path.stem}-{key}.engine"
         self.build_seconds = 0.0
         if not plan.exists():
@@ -98,20 +104,24 @@ class TrtModel:
                 if not profiles or inp.name not in profiles:
                     raise ValueError(f"dynamic input {inp.name} needs a profile")
                 mn, opt, mx = profiles[inp.name]
-                profile.set_shape(inp.name, mn, opt, mx)
+                if not profile.set_shape(inp.name, mn, opt, mx):
+                    raise ValueError(f"invalid optimisation profile for {inp.name}: min={mn} opt={opt} max={mx}")
         if dynamic:
             config.add_optimization_profile(profile)
         blob = builder.build_serialized_network(network, config)
         if blob is None:
             raise RuntimeError(f"TensorRT failed to build an engine for {self.onnx_path}")
-        plan.write_bytes(bytes(blob))
+        tmp = plan.with_name(plan.name + ".tmp")
+        tmp.write_bytes(bytes(blob))
+        os.replace(tmp, plan)  # atomic: a crashed build never leaves a truncated engine
 
     def __call__(self, **inputs: np.ndarray) -> dict[str, np.ndarray]:
         keep = []
         for name in self.inputs:
             arr = np.ascontiguousarray(inputs[name], dtype=np.float32)
             t = torch.from_numpy(arr).to("cuda", dtype=_torch_dtype(self.engine.get_tensor_dtype(name)))
-            self.context.set_input_shape(name, tuple(t.shape))
+            if not self.context.set_input_shape(name, tuple(t.shape)):
+                raise RuntimeError(f"set_input_shape rejected {tuple(t.shape)} for input {name}")
             self.context.set_tensor_address(name, t.data_ptr())
             keep.append(t)
         outs = {}
