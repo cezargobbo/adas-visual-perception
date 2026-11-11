@@ -6,6 +6,7 @@ FetchContent_MakeAvailable(Catch2)
 
 add_executable(adasvp_tests
   test_trt_engine.cpp
+  test_preprocess.cpp
 )
 target_include_directories(adasvp_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src

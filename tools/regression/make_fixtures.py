@@ -138,6 +138,28 @@ def make_segpre(out: Path) -> None:
         save_json(out, f"{name}.json", {"width": iw, "height": ih, "target": [tw, th], "shape": list(t.shape)})
 
 
+# --------------------------------------------------------------------------- polar pre
+def polar_pre(frame_bgr: np.ndarray) -> np.ndarray:
+    """PolarLaneDetector.__call__ preprocessing (crop, BGR->RGB, resize, /255), float32 NCHW."""
+    from lanes_polar import CUT_FRAC, IMG_H, IMG_W
+    H = frame_bgr.shape[0]
+    y_off = int(round(H * CUT_FRAC))
+    rgb = cv2.cvtColor(frame_bgr[y_off:], cv2.COLOR_BGR2RGB)
+    rgb = cv2.resize(rgb, (IMG_W, IMG_H), interpolation=cv2.INTER_LINEAR)
+    return (torch.from_numpy(rgb).permute(2, 0, 1).unsqueeze(0).float() / 255.0).numpy()
+
+
+def make_polarpre(out: Path) -> None:
+    for (w, h) in [(1920, 1080), (854, 474), (1281, 721)]:
+        seed = 3000 + w % 1000
+        t = polar_pre(hash_image(h, w, seed))
+        name = f"polarpre_{w}x{h}"
+        save_npy(out, f"{name}_samples.npy", t[0, :, ::SAMPLE_STRIDE, ::SAMPLE_STRIDE])
+        save_json(out, f"{name}.json", {
+            "input": {"kind": "hash_image", "width": w, "height": h, "seed": seed},
+            "shape": list(t.shape), "sample_stride": SAMPLE_STRIDE, **bits_checksums(t)})
+
+
 # --------------------------------------------------------------------------- seg post
 def make_segpost(out: Path) -> None:
     rng = np.random.default_rng(3000)
@@ -383,7 +405,7 @@ def main() -> None:
     args = ap.parse_args()
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    for fn in (make_letterbox, make_segpre, make_segpost, make_polar, make_kalman, make_lap, make_bytetrack):
+    for fn in (make_letterbox, make_segpre, make_polarpre, make_segpost, make_polar, make_kalman, make_lap, make_bytetrack):
         print(fn.__name__, flush=True)
         fn(out)
     total = sum(p.stat().st_size for p in out.iterdir() if p.suffix in (".npy", ".json"))

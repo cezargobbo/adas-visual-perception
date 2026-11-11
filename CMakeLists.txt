@@ -24,6 +24,8 @@ find_package(TensorRT REQUIRED)
 
 add_library(adasvp SHARED
   src/trt/trt_engine.cpp
+  src/preprocess/letterbox.cpp
+  src/preprocess/kernels.cu
 )
 target_include_directories(adasvp
   PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

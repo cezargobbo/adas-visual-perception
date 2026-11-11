@@ -38,6 +38,7 @@ and tolerance checks.
 | `letterbox_{W}x{H}_s{imgsz}.json` + `_samples.npy` | `preproc.letterbox` on a hash image (1920x1080, 1280x720, 854x474; imgsz 960 and 1280). JSON: ratio, pad `[left, top]`, tensor shape, sample stride (32), checksums. Must match **bit-exactly**. |
 | `letterbox_tiny{0..4}_input.npy` (uint8 HxWx3 BGR), `_expected.npy` (float32 1x3xHxW), `.json` | Small full cases: upscale, downscale, odd padding (the +-0.1 rounding), no resize, no padding. Bit-exact. |
 | `segpre_{W}x{H}_to_{w}x{h}.json` + `_samples.npy` | SegFormer preprocessing (`Segmenter` math in fp32 on CPU) of hash images; samples with stride 16, per-channel mean/min/max. Compare with a small tolerance (resize rounding). |
+| `polarpre_{W}x{H}.json` + `_samples.npy` | Polar R-CNN preprocessing (`PolarLaneDetector.__call__`: crop, RGB, linear resize to 800x320, /255) of hash images 1920x1080, 854x474, 1281x721. Same checksum/sample format as letterbox (stride 32). Bit-exact. |
 | `segpre_tiny{0,1}_input.npy` / `_expected.npy` / `.json` | Same, stored in full. |
 | `segpost_logits.npy` (float32 1x19x36x64) | Random logits; ~1% of pixels have two channels tied at the maximum, four 3x3 patches keep the tie after upsampling, one 3x3 patch has all 19 channels equal (argmax 0). |
 | `segpost_argmax_271x153.npy`, `segpost_argmax_640x360.npy` (uint8 HxW) | Argmax after bilinear upsample (`align_corners=False`, fp32) to 271x153 / 640x360. Ties resolve to the lowest class index. The 1920x1080 output is not stored (2 MB). `segpost.json` reports the number of tied pixels. |
