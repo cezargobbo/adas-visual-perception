@@ -1,0 +1,8 @@
+time_s,frame,type,level_side,ttc_s,line_dist_m,lat_vel_mps,tlc_s,lead_id,lead_dist_m,red_for_s
+16.15,484,LDW,right,,0.30,0.46,0.64,1,16.4,
+34.93,1047,FCW,warning,2.05,,,,740,6.6,
+65.30,1957,FCW,warning,2.23,,,,1128,4.9,
+67.23,2015,FCW,warning,1.56,,,,1276,4.4,
+134.60,4034,LDW,left,,0.28,0.65,0.42,3572,17.2,
+148.08,4438,LDW,left,,0.27,0.78,0.34,4092,16.6,
+157.92,4733,FCW,warning,2.64,,,,3910,7.7,
