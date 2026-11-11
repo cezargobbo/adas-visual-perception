@@ -62,6 +62,11 @@ struct Pipeline::Impl {
       throw;
     }
   }
+  void reset() {
+    if (det) tracker = std::make_unique<ByteTracker>(cfg.tracker, cfg.frame_rate);
+    seg_map.release();
+    frame_index = 0;
+  }
   ~Impl() {
     det.reset();
     seg.reset();
@@ -72,6 +77,13 @@ struct Pipeline::Impl {
 
 Pipeline::Pipeline(const Config& cfg) : impl_(std::make_unique<Impl>(cfg)) {}
 Pipeline::~Pipeline() = default;
+Pipeline::Pipeline(Pipeline&&) noexcept = default;
+Pipeline& Pipeline::operator=(Pipeline&&) noexcept = default;
+
+void Pipeline::reset() {
+  impl_->reset();
+  impl_->last_size = cv::Size();
+}
 
 FrameResult Pipeline::process(const cv::Mat& bgr, double t_seconds) {
   Impl& s = *impl_;
@@ -81,8 +93,7 @@ FrameResult Pipeline::process(const cv::Mat& bgr, double t_seconds) {
   r.t = t_seconds;
 
   if (bgr.size() != s.last_size) {  // new video: stale tracks / segmentation map no longer apply
-    if (s.tracker) s.tracker = std::make_unique<ByteTracker>(cfg.tracker, cfg.frame_rate);
-    s.seg_map.release();
+    s.reset();
     s.last_size = bgr.size();
   }
 
@@ -108,8 +119,9 @@ FrameResult Pipeline::process(const cv::Mat& bgr, double t_seconds) {
     const auto t0 = Clock::now();
     RawLanes rl = s.lanes->detect(bgr, cfg.lanes_thr, s.stream);
     r.timings.lanes_ms = ms_since(t0);
-    r.lanes = std::move(rl.lanes);
-    r.lane_scores = std::move(rl.scores);
+    r.lanes.reserve(rl.lanes.size());
+    for (size_t i = 0; i < rl.lanes.size(); ++i)
+      r.lanes.push_back(Lane{std::move(rl.lanes[i]), i < rl.scores.size() ? rl.scores[i] : 0.f});
   }
 
   if (s.seg) {
@@ -118,7 +130,7 @@ FrameResult Pipeline::process(const cv::Mat& bgr, double t_seconds) {
       s.seg_map = s.seg->segment(bgr, s.stream);
       r.timings.seg_ms = ms_since(t0);
     }
-    r.seg_classes = s.seg_map;
+    r.seg_classes = s.seg_map.clone();  // the cached map is reused between seg_every frames
   }
 
   ++s.frame_index;

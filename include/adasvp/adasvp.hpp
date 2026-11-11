@@ -21,6 +21,11 @@ struct Object {
 
 using Polyline = std::vector<cv::Point2f>;
 
+struct Lane {
+  Polyline points;  // pixel coordinates in the input frame
+  float score = 0.f;
+};
+
 struct Timings {
   double det_ms = 0, seg_ms = 0, lanes_ms = 0, track_ms = 0, total_ms = 0;
 };
@@ -29,9 +34,8 @@ struct FrameResult {
   double t = 0;
   std::vector<Object> objects;     // tracked objects (clipped to the frame)
   std::vector<Object> detections;  // detector output before the tracker (conf + class filtered)
-  std::vector<Polyline> lanes;
-  std::vector<float> lane_scores;
-  cv::Mat seg_classes;
+  std::vector<Lane> lanes;  // all detected lanes; a Plan 3 field `ego_lane` is reserved for the selected ego lane
+  cv::Mat seg_classes;      // CV_8UC1 Cityscapes class map (frame size); always a fresh copy owned by the caller
   Timings timings;
 };
 
@@ -78,10 +82,24 @@ class Pipeline {
   ~Pipeline();
   Pipeline(const Pipeline&) = delete;
   Pipeline& operator=(const Pipeline&) = delete;
+  // Movable. A moved-from Pipeline may only be destroyed or assigned to.
+  Pipeline(Pipeline&&) noexcept;
+  Pipeline& operator=(Pipeline&&) noexcept;
 
   // Detection + tracking, segmentation (every cfg.seg_every frames, the last map is reused in between)
-  // and lanes. Frames may change resolution between calls (the tracker is reset when they do).
+  // and lanes. Frames may change resolution between calls (the tracker, the segmentation map and the
+  // frame counter are reset when they do).
+  //
+  // Threading: process() is not thread-safe; never call it concurrently on one Pipeline (use one
+  // Pipeline per thread). Errors: a CUDA error thrown by process() leaves the Pipeline unusable;
+  // destroy it and construct a new one.
+  // FrameResult::seg_classes is a fresh copy on every call (about 2 MB for 1080p), so the caller may
+  // keep or modify it freely.
   FrameResult process(const cv::Mat& bgr, double t_seconds);
+
+  // Clears the tracker (track ids restart at 1), the cached segmentation map and the frame counter
+  // (the next frame runs segmentation). Call it between unrelated videos of the same resolution.
+  void reset();
 
  private:
   struct Impl;

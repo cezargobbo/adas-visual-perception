@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <string>
 
@@ -54,6 +55,11 @@ int main(int argc, char** argv) {
     else if (!a.empty() && a[0] != '-' && video.empty()) video = a;
     else { usage(); return 2; }
   }
+  if (seg_every < 1) {
+    std::cerr << "--seg-every must be >= 1\n";
+    usage();
+    return 2;
+  }
   if (video.empty() || (profile != "fast" && profile != "accurate") || (out.empty() && !no_write)) {
     usage();
     return 2;
@@ -74,7 +80,14 @@ int main(int argc, char** argv) {
   if (!models_dir.empty()) cfg.models_dir = models_dir;
   else if (const char* e = std::getenv("ADASVP_MODELS_DIR")) cfg.models_dir = e;
   cfg.seg_every = seg_every;
-  Pipeline pipe(cfg);
+  std::unique_ptr<Pipeline> pipe_ptr;
+  try {
+    pipe_ptr = std::make_unique<Pipeline>(cfg);
+  } catch (const std::exception& e) {
+    std::cerr << "error: cannot create the pipeline: " << e.what() << "\n";
+    return 1;
+  }
+  Pipeline& pipe = *pipe_ptr;
 
   std::ofstream jf;
   if (!no_write) {
@@ -113,13 +126,14 @@ int main(int argc, char** argv) {
     o << "],\"lanes\":[";
     for (size_t k = 0; k < r.lanes.size(); ++k) {
       o << (k ? "," : "") << "[";
-      for (size_t p = 0; p < r.lanes[k].size(); ++p) {
-        o << (p ? "," : "") << "["; num(o, r.lanes[k][p].x); o << ","; num(o, r.lanes[k][p].y); o << "]";
+      const Polyline& pts = r.lanes[k].points;
+      for (size_t p = 0; p < pts.size(); ++p) {
+        o << (p ? "," : "") << "["; num(o, pts[p].x); o << ","; num(o, pts[p].y); o << "]";
       }
       o << "]";
     }
     o << "],\"lane_scores\":[";
-    for (size_t k = 0; k < r.lane_scores.size(); ++k) { o << (k ? "," : ""); num(o, r.lane_scores[k]); }
+    for (size_t k = 0; k < r.lanes.size(); ++k) { o << (k ? "," : ""); num(o, r.lanes[k].score); }
     o << "]}\n";
     jf << o.str();
     if (i % seg_every == 0 && !r.seg_classes.empty()) {
