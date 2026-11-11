@@ -6,8 +6,10 @@ Candidate (ONNX Runtime or TensorRT): same crop/resize preprocessing, raw output
 same conversion to frame pixels.
 Frames: `frames.sample` over the 3 test videos plus INTERSECTION_FRAMES frames of
 sp1_crop_30fps.mp4 between 58 s and 62 s (intersection, no lane markings).
-Gates: same lane count in >= 98% of frames; mean point-to-point distance <= 2 px
-(1920x1080 frame) over matched lanes.
+Lane distance: |dx| at common y values over the overlapping y-range (np.interp, sorted by y).
+Gates: same lane count in >= 98% of frames; mean |dx| <= 2 px over matched lanes
+(1920x1080 frame); per-lane max |dx| <= 5 px; |n_ref - n_cand| <= 1 point for every
+matched lane. Lanes with a point-count difference or mean |dx| > 2 px are listed.
 """
 from __future__ import annotations
 
@@ -32,6 +34,8 @@ import lanes_polar as lp  # noqa: E402
 
 MIN_COUNT_MATCH = 98.0   # % of frames with the same lane count
 MAX_MEAN_DIST_PX = 2.0   # on a 1920x1080 frame
+MAX_LANE_DIST_PX = 5.0
+MAX_POINT_DIFF = 1
 INTERSECTION_FRAMES = 10
 INTERSECTION_RANGE_S = (58.0, 62.0)
 N_RESAMPLE = 72
@@ -77,21 +81,43 @@ def candidate_lanes(runner, frame_bgr: np.ndarray, thr: float = lp.CONF_NMSFREE)
     return [np.stack((p[:, 0] * w, p[:, 1] * h), 1).astype(np.float32) for p in lanes], scores
 
 
-def _resample(p: np.ndarray, n: int = N_RESAMPLE) -> np.ndarray:
-    t = np.linspace(0, len(p) - 1, n)
-    return np.stack([np.interp(t, np.arange(len(p)), p[:, k]) for k in range(2)], 1)
+def lane_dx(a: np.ndarray, b: np.ndarray):
+    """|dx| of two lanes at common y values over their overlapping y-range.
+
+    Both lanes are sorted by y and x is linearly interpolated at the y values of the
+    shorter-overlap sample set (union of both lanes' y inside the overlap). Returns the
+    |dx| array, or None if the y-ranges do not overlap.
+    """
+    a, b = a[np.argsort(a[:, 1])], b[np.argsort(b[:, 1])]
+    lo, hi = max(a[0, 1], b[0, 1]), min(a[-1, 1], b[-1, 1])
+    if hi <= lo:
+        return None
+    ys = np.union1d(a[:, 1], b[:, 1])
+    ys = ys[(ys >= lo) & (ys <= hi)]
+    return np.abs(np.interp(ys, a[:, 1], a[:, 0]) - np.interp(ys, b[:, 1], b[:, 0]))
 
 
-def match_distance(ref: list, cand: list) -> list[float]:
-    """Greedy nearest matching (mean point distance after resampling); one value per matched pair."""
+def match_lanes(ref: list, cand: list) -> list[dict]:
+    """Greedy matching by mean |dx| over the common y-range; one record per matched pair."""
     if not ref or not cand:
         return []
-    R, C = [_resample(p) for p in ref], [_resample(p) for p in cand]
-    cost = np.array([[np.linalg.norm(r - c, axis=1).mean() for c in C] for r in R])
+    cost = np.full((len(ref), len(cand)), np.inf)
+    dxs = {}
+    for i, r in enumerate(ref):
+        for j, c in enumerate(cand):
+            d = lane_dx(r, c)
+            if d is not None:
+                dxs[i, j] = d
+                cost[i, j] = d.mean()
     out = []
-    for _ in range(min(len(R), len(C))):
+    for _ in range(min(len(ref), len(cand))):
         i, j = np.unravel_index(np.argmin(cost), cost.shape)
-        out.append(float(cost[i, j]))
+        if not np.isfinite(cost[i, j]):
+            break
+        r, c = ref[i], cand[j]
+        ext = lambda p: float(p[:, 1].max() - p[:, 1].min())  # noqa: E731
+        out.append(dict(n_ref=len(r), n_cand=len(c), mean=float(dxs[i, j].mean()),
+                        max=float(dxs[i, j].max()), ext_diff=abs(ext(r) - ext(c))))
         cost[i, :] = np.inf
         cost[:, j] = np.inf
     return out
@@ -135,27 +161,41 @@ def main() -> int:
           f"gate: count match >= {MIN_COUNT_MATCH}% and mean dist <= {MAX_MEAN_DIST_PX}px")
 
     rows = []
-    dists: list[float] = []
+    lanes_rec: list[dict] = []
+    flagged: list[str] = []
     by_res = defaultdict(list)
     print(f"{'frame':<34} {'ref':>3} {'cand':>4} {'mean px':>8}")
     for name, idx, frame in samples:
         ref, _ = det(frame)
         cand, _ = candidate_lanes(runner, frame)
-        d = match_distance(ref, cand)
-        dists += d
+        recs = match_lanes(ref, cand)
+        tag = f"{name}#{idx}" if "@" not in name else name
+        for r in recs:
+            if r["n_ref"] != r["n_cand"] or r["mean"] > MAX_MEAN_DIST_PX:
+                flagged.append(f"  {tag}: n_ref={r['n_ref']} n_cand={r['n_cand']} "
+                               f"mean|dx|={r['mean']:.3f}px max|dx|={r['max']:.3f}px "
+                               f"y-extent diff={r['ext_diff']:.3f}px")
+        lanes_rec += recs
         same = len(ref) == len(cand)
         by_res[frame.shape[1::-1]].append(same)
         rows.append(same)
-        tag = f"{name}#{idx}" if "@" not in name else name
-        print(f"{tag:<34} {len(ref):>3} {len(cand):>4} {(np.mean(d) if d else float('nan')):>8.3f}")
+        m = np.mean([r["mean"] for r in recs]) if recs else float("nan")
+        print(f"{tag:<34} {len(ref):>3} {len(cand):>4} {m:>8.3f}")
 
     pct = 100.0 * sum(rows) / len(rows)
-    mean_d = float(np.mean(dists)) if dists else 0.0
-    max_d = float(np.max(dists)) if dists else 0.0
+    means = [r["mean"] for r in lanes_rec]
+    mean_d = float(np.mean(means)) if means else 0.0
+    max_d = max((r["max"] for r in lanes_rec), default=0.0)
+    max_pt = max((abs(r["n_ref"] - r["n_cand"]) for r in lanes_rec), default=0)
+    max_ext = max((r["ext_diff"] for r in lanes_rec), default=0.0)
     for (fw, fh), v in sorted(by_res.items(), reverse=True):
         print(f"  {fw}x{fh}: count match {sum(v)}/{len(v)}")
-    ok = pct >= MIN_COUNT_MATCH and mean_d <= MAX_MEAN_DIST_PX
-    print(f"count match {pct:.1f}%  matched lanes={len(dists)}  mean dist {mean_d:.4f}px  max lane dist {max_d:.4f}px")
+    print(f"lanes with point-count difference or mean |dx| > {MAX_MEAN_DIST_PX}px: {len(flagged)}")
+    print("\n".join(flagged))
+    ok = (pct >= MIN_COUNT_MATCH and mean_d <= MAX_MEAN_DIST_PX
+          and max_d <= MAX_LANE_DIST_PX and max_pt <= MAX_POINT_DIFF)
+    print(f"count match {pct:.1f}%  matched lanes={len(lanes_rec)}  mean |dx| {mean_d:.4f}px  "
+          f"worst lane max |dx| {max_d:.4f}px  max point diff {max_pt}  max y-extent diff {max_ext:.3f}px")
     print("OVERALL:", "PASS" if ok else "FAIL")
     return 0 if ok else 1
 
