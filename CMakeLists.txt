@@ -15,6 +15,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 option(ADASVP_BUILD_TESTS "Build the C++ tests" ${PROJECT_IS_TOP_LEVEL})
+option(ADASVP_BUILD_EXAMPLES "Build the video_demo example" ON)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -60,6 +61,10 @@ set_source_files_properties(src/models/lane_detector.cpp src/adas/ego_lane.cpp s
 
 add_executable(adasvp_dump tools/cpp/adasvp_dump.cpp)
 target_link_libraries(adasvp_dump PRIVATE adasvp opencv_imgcodecs opencv_videoio)
+
+if(ADASVP_BUILD_EXAMPLES)
+  add_subdirectory(examples)
+endif()
 
 if(ADASVP_BUILD_TESTS)
   enable_testing()

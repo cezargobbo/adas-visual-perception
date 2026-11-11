@@ -20,6 +20,10 @@ add_executable(adasvp_tests
   test_pipeline_adas.cpp
   test_render.cpp
 )
+if(TARGET adasvp_example_common)
+  target_sources(adasvp_tests PRIVATE test_cli.cpp)
+  target_link_libraries(adasvp_tests PRIVATE adasvp_example_common)
+endif()
 target_include_directories(adasvp_tests PRIVATE
   ${PROJECT_SOURCE_DIR}/src
   ${CMAKE_CURRENT_SOURCE_DIR})
