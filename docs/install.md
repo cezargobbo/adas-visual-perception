@@ -49,7 +49,13 @@ Run it with the wrapper, which mounts the models, the input video and the output
     scripts/download_models.sh --profile fast
     scripts/video_demo_docker.sh videos/redlights/red_crop_11_30fps.mp4 -o outputs/docker/red_crop_11_30fps --profile fast --no-seg --dry
 
-- Write options as `--option value` (not `--option=value`), so the wrapper can translate paths.
+- Write options as `--option value` (not `--option=value`), so the wrapper can translate paths. Put the
+  video before `--` if its name starts with a dash (`... -- -clip.mp4`).
+- `--show` is not supported through Docker (the container has no display): run `video_demo` natively for
+  the live view. The wrapper rejects it with exit 2.
+- Output paths (`-o` and `--adas-debug`) are translated and their folders are created on the host.
+  `--det-model` and `--seg-model` are not translated: through the wrapper they accept only file names that
+  are in `models/` (for example `--det-model yolo26x.onnx`), not host paths.
 - The repository is mounted read-only at `/work/repo`, `models/` at `/work/models`, the input video's folder
   read-only, and the folder of the `-o` prefix read-write (it is created on the host first).
 - TensorRT engines are cached in `${XDG_CACHE_HOME:-$HOME/.cache}/adasvp` on the host, mounted at
@@ -85,10 +91,10 @@ TensorRT packages from NVIDIA's apt repository for Ubuntu 24.04.
 
        sudo apt install libnvinfer-dev libnvinfer-plugin-dev libnvonnxparsers-dev
 
-   The apt repository offers the newest TensorRT 10 build. If your CUDA toolkit is older than the one the
-   TensorRT packages target (as on the tested machine: toolkit 12.9, TensorRT built for 13.2), the build
-   and the runs worked on that machine. To get a matching pair, install the TensorRT
-   packages for your CUDA version with the `+cudaXX.Y` version suffix shown by `apt policy libnvinfer-dev`.
+   The apt repository offers the newest TensorRT 10 build. On the tested machine the CUDA toolkit is 12.9
+   while these TensorRT packages are built for CUDA 13.2, and the build and the runs worked. That
+   combination may not work elsewhere. If it does not, install a TensorRT build and a toolkit for the same
+   CUDA version (the `+cudaXX.Y` suffix in `apt policy libnvinfer-dev` shows which).
 
 5. **The rest.** OpenCV, CMake (3.24 or newer; Ubuntu 24.04 ships 3.28), a compiler and ffmpeg:
 
@@ -96,7 +102,7 @@ TensorRT packages from NVIDIA's apt repository for Ubuntu 24.04.
 
    CLI11 is fetched by CMake if it is not installed; `sudo apt install libcli11-dev` avoids the download.
 
-6. **Build** (**tested**: configure, build and `ctest` with the packages above):
+6. **Build** (**tested**: configure, build and `ctest` with the packages above; 72/72 tests passed, none skipped, with models and videos present and `ADASVP_VIDEOS_DIR` set):
 
        cmake --preset native-release
        cmake --build build/native-release -j

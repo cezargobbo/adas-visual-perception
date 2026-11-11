@@ -13,8 +13,6 @@ IMAGE=${ADASVP_DOCKER_IMAGE:-adas-visual-perception}
 GPU_FLAGS=${ADASVP_DOCKER_GPU_FLAGS---gpus all}
 CACHE_DIR=${XDG_CACHE_HOME:-$HOME/.cache}/adasvp
 
-command -v docker >/dev/null 2>&1 || { echo "error: docker not found in PATH" >&2; exit 2; }
-
 abspath() { # abspath PATH -> absolute path (no symlink resolution of the last component)
   case $1 in
     /*) printf '%s\n' "$1" ;;
@@ -22,51 +20,68 @@ abspath() { # abspath PATH -> absolute path (no symlink resolution of the last c
   esac
 }
 
-# Options that take one value. Needed to tell the input video (the only positional) from option values.
-VALUE_OPTS=" -o --out-prefix --start --duration --encoder --profile --show-width --seg-model --seg-size
+# Options that take one value (tests/tools/test_docker_wrapper.py checks this list against examples/cli.cpp).
+# Special cases handled below: -o/--out-prefix and --adas-debug (output paths, translated), --rlr-zone
+# (two values), --show (rejected: no display in the container), --models-dir (rejected: set by the wrapper).
+VALUE_OPTS=" --start --duration --encoder --profile --show-width --seg-model --seg-size
  --seg-every --seg-alpha --det-model --det-imgsz --conf --hfov --cam-height --horizon --corridor-bottom
  --corridor-top --lanes-thr --lanes-hold --fcw-ttc --fcw-ttc-critical --ldw-margin --ldw-car-width
- --alert-display --det-precision --models-dir "
+ --alert-display --det-precision "
 
-args=() mounts=() input="" outprefix="" outdir=""
+# host_outdir PATH: absolute directory of an output file path, created on the host.
+host_outdir() {
+  local d=${1%/*}
+  [ -n "$d" ] || d=/
+  mkdir -p "$d"
+  printf '%s\n' "$d"
+}
+
+args=() input="" outdir="" dbgdir="" positional_only=0
 while [ $# -gt 0 ]; do
-  case $1 in
-    --models-dir|--models-dir=*)
-      echo "error: --models-dir is set by this wrapper (models/ is mounted at /work/models)" >&2; exit 2 ;;
-    --out-prefix=*|--*=*)
-      echo "error: write '$1' as two words (OPTION VALUE); the wrapper translates paths word by word" >&2; exit 2 ;;
-    -o|--out-prefix)
-      [ $# -ge 2 ] || { echo "error: $1 needs a value" >&2; exit 2; }
-      outprefix=$(abspath "$2")
-      outdir=${outprefix%/*}
-      [ -n "$outdir" ] || outdir=/
-      mkdir -p "$outdir"
-      args+=("-o" "/out/${outprefix##*/}")
-      shift 2 ;;
-    --rlr-zone)
-      [ $# -ge 3 ] || { echo "error: --rlr-zone needs two values" >&2; exit 2; }
-      args+=("$1" "$2" "$3"); shift 3 ;;
-    --show)
-      args+=("$1"); shift
-      if [ $# -gt 0 ]; then case $1 in det|seg|comb) args+=("$1"); shift ;; esac; fi ;;
-    -*)
-      if [[ $VALUE_OPTS == *" $1 "* ]]; then
+  if [ $positional_only -eq 0 ]; then
+    case $1 in
+      --) positional_only=1; shift; continue ;;
+      --models-dir|--models-dir=*)
+        echo "error: --models-dir is set by this wrapper (models/ is mounted at /work/models)" >&2; exit 2 ;;
+      --show|--show=*)
+        echo "error: --show is not supported through Docker; run video_demo natively" >&2; exit 2 ;;
+      --*=*)
+        echo "error: write '$1' as two words (OPTION VALUE); the wrapper translates paths word by word" >&2; exit 2 ;;
+      -o|--out-prefix)
         [ $# -ge 2 ] || { echo "error: $1 needs a value" >&2; exit 2; }
-        args+=("$1" "$2"); shift 2
-      else
-        args+=("$1"); shift
-      fi ;;
-    *)
-      if [ -z "$input" ]; then
-        input=$(abspath "$1")
-        args=("/in/${input##*/}" "${args[@]}")
-      else
-        args+=("$1")
-      fi
-      shift ;;
-  esac
+        p=$(abspath "$2")
+        outdir=$(host_outdir "$p")
+        args+=("-o" "/out/${p##*/}")
+        shift 2; continue ;;
+      --adas-debug)
+        [ $# -ge 2 ] || { echo "error: $1 needs a value" >&2; exit 2; }
+        p=$(abspath "$2")
+        dbgdir=$(host_outdir "$p")
+        args+=("--adas-debug" "/dbg/${p##*/}")
+        shift 2; continue ;;
+      --rlr-zone)
+        [ $# -ge 3 ] || { echo "error: --rlr-zone needs two values" >&2; exit 2; }
+        args+=("$1" "$2" "$3"); shift 3; continue ;;
+      -*)
+        if [[ $VALUE_OPTS == *" $1 "* ]]; then
+          [ $# -ge 2 ] || { echo "error: $1 needs a value" >&2; exit 2; }
+          args+=("$1" "$2"); shift 2
+        else
+          args+=("$1"); shift
+        fi
+        continue ;;
+    esac
+  fi
+  if [ -z "$input" ]; then
+    input=$(abspath "$1")
+    args=("/in/${input##*/}" "${args[@]}")
+  else
+    args+=("$1")
+  fi
+  shift
 done
 
+command -v docker >/dev/null 2>&1 || { echo "error: docker not found in PATH" >&2; exit 2; }
 mkdir -p "$CACHE_DIR"
 
 run=(docker run --rm --init)
@@ -74,20 +89,26 @@ run=(docker run --rm --init)
 run+=($GPU_FLAGS)
 run+=(--user "$(id -u):$(id -g)"
       -e XDG_CACHE_HOME=/cache -e HOME=/tmp
-      -v "$ROOT:/work/repo:ro" -v "$ROOT/models:/work/models:ro"
-      -v "$CACHE_DIR:/cache/adasvp")
-[ -n "$input" ] && run+=(-v "${input%/*}:/in:ro")
-[ -n "$outdir" ] && run+=(-v "$outdir:/out")
+      --mount "type=bind,src=$ROOT,dst=/work/repo,readonly"
+      --mount "type=bind,src=$ROOT/models,dst=/work/models,readonly"
+      --mount "type=bind,src=$CACHE_DIR,dst=/cache/adasvp")
+[ -n "$input" ] && run+=(--mount "type=bind,src=${input%/*},dst=/in,readonly")
+[ -n "$outdir" ] && run+=(--mount "type=bind,src=$outdir,dst=/out")
+[ -n "$dbgdir" ] && run+=(--mount "type=bind,src=$dbgdir,dst=/dbg")
 run+=("$IMAGE" video_demo --models-dir /work/models "${args[@]}")
 
-# Keep stderr visible while also scanning it for GPU/runtime errors.
-err=$(mktemp "${TMPDIR:-/tmp}/adasvp-docker.XXXXXX")
-trap 'rm -f "$err"' EXIT
+# Keep stderr visible while also scanning it for GPU/runtime errors (a FIFO, so the tee can be waited for).
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/adasvp-docker.XXXXXX")
+trap 'rm -rf "$tmp"' EXIT
+err=$tmp/stderr
+mkfifo "$tmp/fifo"
+tee "$err" >&2 <"$tmp/fifo" &
+tee_pid=$!
 set +e
-"${run[@]}" 2> >(tee "$err" >&2)
+"${run[@]}" 2>"$tmp/fifo"
 rc=$?
+wait "$tee_pid"
 set -e
-sleep 0.2  # let the tee process substitution flush
 if [ $rc -ne 0 ] && grep -qiE "could not select device driver|nvidia-container|unknown or invalid runtime|nvidia.*runtime|NVIDIA Driver|no CUDA-capable|CUDA driver version is insufficient|failed to initialize NVML|libcuda" "$err"; then
   cat >&2 <<'HINT'
 
