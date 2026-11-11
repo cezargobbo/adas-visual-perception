@@ -138,11 +138,9 @@ std::string cacheKey(const std::string& onnx_path, Precision p, const std::optio
   if (prof) {
     profile_desc = prof->input + ":" + dimsStr(prof->min) + ":" + dimsStr(prof->opt) + ":" + dimsStr(prof->max);
   }
-  Sha256 ph;
-  ph.update(profile_desc);
   std::string desc = sha256File(onnx_path).substr(0, 12) + "_" + (p == Precision::FP16 ? "fp16" : "fp32") +
                      "_trt" + std::to_string(getInferLibVersion()) + "_" + gpuName() + "_" +
-                     ph.hexdigest().substr(0, 8);
+                     sha256Hex(profile_desc).substr(0, 8);
   for (char& c : desc)
     if (!(std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-' || c == '.')) c = '-';
   return desc;
@@ -195,15 +193,28 @@ std::vector<char> buildSerialized(const std::string& onnx_path, Precision p,
 void writeAtomic(const fs::path& dst, const std::vector<char>& data) {
   fs::path tmp = dst;
   tmp += ".tmp." + std::to_string(static_cast<long>(::getpid()));
-  {
-    std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
-    f.write(data.data(), static_cast<std::streamsize>(data.size()));
-    if (!f) throw std::runtime_error("failed to write engine cache " + tmp.string());
+  try {
+    {
+      std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
+      f.write(data.data(), static_cast<std::streamsize>(data.size()));
+      f.flush();
+      if (!f) throw std::runtime_error("failed to write engine cache " + tmp.string());
+    }
+    fs::rename(tmp, dst);  // atomic on the same filesystem
+  } catch (...) {
+    std::error_code ec;
+    fs::remove(tmp, ec);
+    throw;
   }
-  fs::rename(tmp, dst);  // atomic on the same filesystem
 }
 
 }  // namespace
+
+std::string sha256Hex(const std::string& data) {
+  Sha256 h;
+  h.update(data);
+  return h.hexdigest();
+}
 
 std::string defaultCacheDir() {
   const char* xdg = std::getenv("XDG_CACHE_HOME");
@@ -250,10 +261,7 @@ TrtEngine::TrtEngine(const std::string& onnx_path, Precision p, const std::strin
   ensureBuffers();
 }
 
-TrtEngine::~TrtEngine() {
-  for (auto& [name, b] : buffers_)
-    if (b.ptr) cudaFree(b.ptr);
-}
+TrtEngine::~TrtEngine() = default;
 
 void TrtEngine::ensureBuffers() {
   auto& eng = *impl_->engine;
@@ -268,8 +276,7 @@ void TrtEngine::ensureBuffers() {
     const size_t bytes = std::max<size_t>(n * elemSize(eng.getTensorDataType(name)), 1);
     Buffer& b = buffers_[name];
     if (bytes > b.bytes) {
-      if (b.ptr) ADASVP_CUDA_CHECK(cudaFree(b.ptr));
-      b.ptr = nullptr;
+      b.release();
       ADASVP_CUDA_CHECK(cudaMalloc(&b.ptr, bytes));
       b.bytes = bytes;
     }
