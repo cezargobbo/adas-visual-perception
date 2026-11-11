@@ -70,7 +70,7 @@ C++ = `adasvp_dump --no-write` (seg every 30 frames). Python timings are noisy (
 | accurate | red_crop_12_30fps | 660 | 11.1 | 11.6 |
 | accurate | red_crop_13_30fps | 751 | 11.1 | 12.1 |
 
-(Measured with `adasvp_dump` in an earlier run; the dry-run `video_demo` numbers of the event-level regression below are the current ones.)
+(Measured with `adasvp_dump --no-write`, which runs the SegFormer segmentation every 30 frames, against Python dumps with `--seg-every 30`. The `video_demo --dry --no-seg` numbers of the event-level regression below skip segmentation, so the two tables are not directly comparable; the dry-run numbers are the current ones.)
 
 ## adas.jsonl schema
 
@@ -102,12 +102,12 @@ the defaults used, the derived windows (`ego_hold_frames`, `ego_persist`, `fcw_o
 ## Event-level regression: C++ `video_demo` vs Python reference (17 videos x 2 profiles)
 
 `run_cpp_regression.sh --videos-dir DIR --profile P --dry` (RTX 4070 Laptop, dry run = no encoding, `--no-seg`,
-fp32 detector, the default at the time of these runs) against `tests/regression/reference/P/` (strict, +-0.5 s, type + level/side).
+default detector of each profile at the time of these runs: fast fp16, accurate fp32) against `tests/regression/reference/P/` (strict, +-0.5 s, type + level/side).
 The counts are all alert events (FCW + LDW + RLR). "Python fps" = frames / wall time of the reference run in
 `summary.txt` (model loading and the detections video included, shared GPU: noisy); "C++ fps" = the `total` fps
 printed by `video_demo` at the end of the run (decode + lanes + detection + tracking + ADAS, no encoding).
 
-### Fast profile (default fp32 detector)
+### Fast profile (fp16 detector, the fast default)
 
 | video | frames | ref events | C++ events | matched | borderline | Python fps | C++ fps | result |
 |---|---|---|---|---|---|---|---|---|

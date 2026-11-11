@@ -4,7 +4,9 @@
 Usage: compare_alerts.py REF.csv CPP.csv [--tol 0.5]
 
 Events are matched by (type, level_side) within +-tol seconds on time_s (greedy, closest pairs first, each
-event used once). Prints the pairs, the missing events (in REF only) and the extra events (in CPP only), and
+event used once). Greedy matching can only err on the strict side: it may leave a false missing/extra pair when
+events are closer together than the tolerance, but it never pairs events that are farther apart than the tolerance
+or of a different kind, so it cannot hide a real mismatch. Prints the pairs, the missing events (in REF only) and the extra events (in CPP only), and
 exits 0 only when nothing is missing or extra. The tolerance is never loosened: borderline FCW cases are
 diagnosed separately (see README.md).
 """
@@ -15,7 +17,13 @@ import sys
 
 def load(path):
     with open(path, newline="") as f:
-        return [(float(r["time_s"]), int(r["frame"]), r["type"], r["level_side"]) for r in csv.DictReader(f)]
+        rows = []
+        for n, r in enumerate(csv.DictReader(f), start=2):
+            try:
+                rows.append((float(r["time_s"]), int(r["frame"]), r["type"], r["level_side"]))
+            except (ValueError, TypeError, KeyError) as e:
+                sys.exit(f"{path}: line {n}: invalid event row ({e!r}); empty or missing time_s/frame?")
+        return rows
 
 
 def match(ref, cpp, tol):
