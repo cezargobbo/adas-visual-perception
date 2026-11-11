@@ -25,6 +25,12 @@
 - `compare_dumps.py REF_DIR CPP_DIR --adas` additionally compares `adas.jsonl`: every alert event (type + side/level)
   must have a partner in the other dump within +-0.5 s (gate); `ego.state` agreement (>= 97%) and lead-id agreement
   under the majority id mapping (>= 95%) are printed as diagnostics.
+  Borderline rule: an FCW event present in only one dump is classified BORDERLINE (listed separately, with both
+  minimum TTCs, not a failure) when the dump that did not fire it had its smoothed `fcw.ttc` at or below
+  1.02 x the threshold of that level (warning `fcw_ttc` 2.7, critical `fcw_ttc_critical` 1.5, read from the reference
+  `meta.json`, else the reference defaults) within +-0.5 s of the event. Any other mismatch, and any LDW/RLR
+  mismatch, fails (non-zero exit). The rule exists because per-frame equality across inference engines (torch vs
+  TensorRT) is unattainable at a threshold crossing, while the logic replay tests prove the logic itself is exact.
 - `make_reference.sh`: regenerates the Python reference alerts.
 
 ```

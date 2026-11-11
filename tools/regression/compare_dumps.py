@@ -145,6 +145,43 @@ def compare(ref_dir: Path, cpp_dir: Path) -> dict:
 
 
 EVENT_TOL_S = 0.5
+BORDERLINE_FACTOR = 1.02
+DEFAULT_FCW_TTC = {"warning": 2.7, "critical": 1.5}  # fcw_ttc, fcw_ttc_critical of the reference defaults
+
+
+def fcw_thresholds(ref_dir: Path) -> dict:
+    """Thresholds from the reference dump meta (adas.defaults), else the reference defaults."""
+    try:
+        d = json.load(open(ref_dir / "meta.json"))["adas"]["defaults"]
+        return {"warning": float(d["fcw_ttc"]), "critical": float(d["fcw_ttc_critical"])}
+    except (OSError, KeyError, ValueError, TypeError):
+        return dict(DEFAULT_FCW_TTC)
+
+
+def classify_unmatched(events, other_rows, thr, tol=EVENT_TOL_S):
+    """Split unmatched events of one dump into (borderline, failing).
+
+    An unmatched FCW event is BORDERLINE when the OTHER dump, which did not fire it, had its smoothed fcw ttc
+    at or below BORDERLINE_FACTOR x the threshold of that level within +-tol s of the event. Returns
+    ([(event, other_min_ttc)], [event]); everything that is not an FCW event is failing."""
+    border, fail = [], []
+    for e in events:
+        if e[0] != "FCW" or e[1] not in thr:
+            fail.append(e)
+            continue
+        ttcs = [r["fcw"]["ttc"] for r in other_rows
+                if r["fcw"]["ttc"] is not None and abs(r["t"] - e[2]) <= tol]
+        m = min(ttcs) if ttcs else None
+        if m is not None and m <= BORDERLINE_FACTOR * thr[e[1]]:
+            border.append((e, m))
+        else:
+            fail.append(e)
+    return border, fail
+
+
+def min_ttc_near(rows, t, tol=EVENT_TOL_S):
+    v = [r["fcw"]["ttc"] for r in rows if r["fcw"]["ttc"] is not None and abs(r["t"] - t) <= tol]
+    return min(v) if v else None
 
 
 def load_adas(d: Path):
@@ -195,7 +232,15 @@ def compare_adas(ref_dir: Path, cpp_dir: Path) -> dict:
         a, b = ref[k]["lead"], cpp[k]["lead"]
         agree += (a is None and b is None) or (a is not None and b is not None and maj.get(int(b[0])) == int(a[0]))
     res["lead_agree"] = agree / max(n, 1)
-    res["pass"] = not miss and not extra and len(ref) == len(cpp)
+    thr = fcw_thresholds(ref_dir)
+    # a missing event is an event of the reference that C++ did not fire (C++ is "the other"), and vice versa
+    res["missing_border"], miss_fail = classify_unmatched(res["missing"], cpp, thr)
+    res["extra_border"], extra_fail = classify_unmatched(res["extra"], ref, thr)
+    res["missing_border"] = [(e, m, min_ttc_near(ref, e[2])) for e, m in res["missing_border"]]
+    res["extra_border"] = [(e, m, min_ttc_near(cpp, e[2])) for e, m in res["extra_border"]]
+    res["missing_fail"], res["extra_fail"] = miss_fail, extra_fail
+    res["thresholds"] = thr
+    res["pass"] = not miss_fail and not extra_fail and len(ref) == len(cpp)
     return res
 
 
@@ -203,14 +248,21 @@ def print_adas(r: dict) -> None:
     fmt = lambda e: f"{e[0]} {e[1]} @ frame {e[3]} (t={e[2]:.2f}s)"  # noqa: E731
     print(f"adas frames ref/cpp {r['frames']}")
     print(f"adas events         ref {len(r['ref_events'])}, cpp {len(r['cpp_events'])}, matched {len(r['pairs'])} "
-          f"(+-{EVENT_TOL_S} s) [{'OK' if r['pass'] else 'FAIL'}]")
+          f"(+-{EVENT_TOL_S} s), borderline {len(r['missing_border']) + len(r['extra_border'])} [{'OK' if r['pass'] else 'FAIL'}]")
     for i, j, dt in r["pairs"]:
         a, b = r["ref_events"][i], r["cpp_events"][j]
         print(f"    {a[0]} {a[1]}: ref frame {a[3]} / cpp frame {b[3]} (dt {dt:.3f} s)")
-    for e in r["missing"]:
+    for e in r["missing_fail"]:
         print(f"    MISSING in cpp: {fmt(e)}")
-    for e in r["extra"]:
+    for e in r["extra_fail"]:
         print(f"    EXTRA in cpp:   {fmt(e)}")
+    if r["missing_border"] or r["extra_border"]:
+        print(f"  BORDERLINE (not failures; other side's min ttc within +-{EVENT_TOL_S} s <= "
+              f"{BORDERLINE_FACTOR} x threshold {r['thresholds']}):")
+        for e, other_m, fired_m in r["missing_border"]:
+            print(f"    borderline MISSING in cpp: {fmt(e)}  min ttc: cpp {other_m:.3f} (not fired) / ref {fired_m:.3f}")
+        for e, other_m, fired_m in r["extra_border"]:
+            print(f"    borderline EXTRA in cpp:   {fmt(e)}  min ttc: ref {other_m:.3f} (not fired) / cpp {fired_m:.3f}")
     print(f"adas ego.state eq   {r['state_agree']:.4f}  (diagnostic >=0.97) [{'ok' if r['state_agree'] >= 0.97 else 'low'}]")
     print(f"adas lead id eq     {r['lead_agree']:.4f}  (diagnostic >=0.95) [{'ok' if r['lead_agree'] >= 0.95 else 'low'}]")
 
