@@ -199,6 +199,7 @@ FrameResult Pipeline::process(const cv::Mat& bgr, double t_seconds) {
   }
   if (ad.ldw) {
     r.ldw = ad.ldw->update(t_seconds);
+    r.ldw.enabled = true;
     r.debug.ldw_fail = ad.ldw->fail();
     r.debug.ldw_last_v = ad.ldw->last_v();
     r.debug.ldw_m = ad.ldw->metrics();

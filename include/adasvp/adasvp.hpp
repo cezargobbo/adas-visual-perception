@@ -66,6 +66,9 @@ struct FcwStatus {
 };
 
 struct LdwStatus {
+  // True when the LDW monitor ran for this frame (enable_ldw and lanes available). The Python only shows the
+  // "LDW: armed/disarmed" status when the monitor exists, so the renderer needs to know.
+  bool enabled = false;
   bool armed = false;
   std::string side;   // active side: "", "left" or "right"
   std::string event;  // "" or the newly triggered side

@@ -120,7 +120,7 @@ void put_label(cv::Mat& img, const std::string& text, int x, int y, const Scalar
 }
 
 void draw_lanes(cv::Mat& img, const std::vector<Lane>& lanes, const EgoLane& ego, const std::string& ldw_side,
-                bool ldw_armed) {
+                bool ldw_armed, bool ldw_enabled) {
   const int H = img.rows;
   for (const Lane& l : lanes) {
     std::vector<cv::Point> p;
@@ -168,8 +168,9 @@ void draw_lanes(cv::Mat& img, const std::vector<Lane>& lanes, const EgoLane& ego
     }
   }
   put_label(img, std::string("lane: ") + state_name(ego.state), 12, H - 14, line_col, 0.6, 2);
-  put_label(img, ldw_armed ? "LDW: armed" : "LDW: disarmed", 12, H - 46,
-            ldw_armed ? Scalar(90, 200, 90) : Scalar(150, 150, 150), 0.5, 1);
+  if (ldw_enabled)  // the Python draws the status only when the LDW monitor exists
+    put_label(img, ldw_armed ? "LDW: armed" : "LDW: disarmed", 12, H - 46,
+                ldw_armed ? Scalar(90, 200, 90) : Scalar(150, 150, 150), 0.5, 1);
 }
 
 void draw_detections(cv::Mat& img, const std::vector<Object>& dets, const cv::Mat& frame_raw,

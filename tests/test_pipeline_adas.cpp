@@ -26,6 +26,7 @@ TEST_CASE("Pipeline ADAS fields are consistent") {
   Pipeline pipe(cfg);
 
   cv::Mat frame;
+  int n_ldw_enabled = 0;
   int n_alerts = 0, n_events = 0, n_lead = 0, n_available = 0;
   LaneState first_state = LaneState::None;
   bool first_lead = false;
@@ -55,6 +56,7 @@ TEST_CASE("Pipeline ADAS fields are consistent") {
     }
 
     // ego lane state is valid and consistent
+    n_ldw_enabled += r.ldw.enabled;
     const EgoLane& e = r.ego_lane;
     const int st = static_cast<int>(e.state);
     REQUIRE((st >= static_cast<int>(LaneState::None) && st <= static_cast<int>(LaneState::Detected)));
@@ -72,6 +74,7 @@ TEST_CASE("Pipeline ADAS fields are consistent") {
     }
   }
   CHECK(n_available > 0);
+  CHECK(n_ldw_enabled == 150);  // the LDW monitor runs on every frame by default
   CHECK(n_lead > 0);
   const AdasStats st = pipe.stats();
   CHECK(st.fcw_events + st.ldw_events + st.rlr_events == n_alerts);
@@ -89,4 +92,26 @@ TEST_CASE("Pipeline ADAS fields are consistent") {
   CHECK(r0.ego_lane.state == first_state);
   CHECK(r0.lead.has_value() == first_lead);
   CHECK(r0.alerts.empty());
+}
+
+TEST_CASE("Pipeline reports ldw.enabled only when the LDW monitor exists") {
+  const char* dir = std::getenv("ADASVP_VIDEOS_DIR");
+  if (!dir) SKIP("ADASVP_VIDEOS_DIR not set");
+  const fs::path v = fs::path(dir) / "sp1_crop_30fps.mp4";
+  if (!fs::exists(v)) SKIP("test video not found");
+
+  Config cfg = Config::fast();
+  cfg.models_dir = std::string(ADASVP_SOURCE_DIR) + "/models";
+  if (const char* m = std::getenv("ADASVP_MODELS_DIR")) cfg.models_dir = m;
+  cfg.seg_every = 30;
+  cfg.enable_ldw = false;
+  cv::VideoCapture cap(v.string());
+  REQUIRE(cap.isOpened());
+  cfg.frame_rate = cap.get(cv::CAP_PROP_FPS);
+  Pipeline pipe(cfg);
+  cv::Mat frame;
+  for (int i = 0; i < 5; ++i) {
+    REQUIRE(cap.read(frame));
+    CHECK_FALSE(pipe.process(frame, i / cfg.frame_rate).ldw.enabled);
+  }
 }

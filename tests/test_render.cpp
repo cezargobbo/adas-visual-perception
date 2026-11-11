@@ -68,6 +68,7 @@ FrameResult build_result(const json& fr, const json& ad, const cv::Mat& seg, con
   r.fcw.ttc = opt_num(ad["fcw"]["ttc"]);
   r.fcw.active = ad["fcw"]["active"].get<bool>();
   r.fcw.level = str_or_empty(ad["fcw"]["level"]);
+  r.ldw.enabled = true;  // the LDW monitor existed in every recorded trace
   r.ldw.armed = ad["ldw"]["armed"].get<bool>();
   r.ldw.side = str_or_empty(ad["ldw"]["side"]);
   if (!ad["rlr"]["event"].is_null()) r.rlr.event = RlrEvent{};
@@ -113,19 +114,21 @@ TEST_CASE("Renderer matches the Python drawing") {
       {"red_crop_11_30fps", 410, 470, "GIF 15.53 s"},
   };
   const char* dump_dir = std::getenv("ADASVP_RENDER_OUT");
-  int checked = 0;
+  int checked = 0, missing = 0;
   for (const Window& w : windows) {
     const std::string name = std::string(w.trace) + "_" + std::to_string(w.a) + "_" + std::to_string(w.b);
     const fs::path trace = src / "outputs/dumps/fast" / w.trace;
     const fs::path ref = src / "outputs/render_ref" / name;
     if (!fs::exists(ref / "manifest.json") || !fs::exists(trace / "adas.jsonl")) {
-      WARN("no reference render for " << name << " (tools/regression/render_reference.py): skipped");
+      WARN("no reference render for " << name << " (tools/regression/render_reference.py)");
+      ++missing;
       continue;
     }
     fs::path video = fs::path(vdir) / json::parse(std::ifstream(trace / "meta.json"))["video"].get<std::string>();
     if (!fs::exists(video)) video = fs::path(vdir) / "redlights" / video.filename();
     if (!fs::exists(video)) {
-      WARN("test video not found for " << name << ": skipped");
+      WARN("test video not found for " << name);
+      ++missing;
       continue;
     }
     const json manifest = json::parse(std::ifstream(ref / "manifest.json"));
@@ -190,5 +193,42 @@ TEST_CASE("Renderer matches the Python drawing") {
     }
     ++checked;
   }
+  std::cout << "[render] windows checked: " << checked << " of " << windows.size() << "\n";
   if (checked == 0) SKIP("no reference render available");
+  // some windows have their inputs and others do not: a partial check must not pass silently
+  CHECK(missing == 0);
+}
+
+TEST_CASE("Renderer omits the LDW status label when LDW is disabled") {
+  const int W = 1280, H = 720;
+  cv::Mat frame(H, W, CV_8UC3, cv::Scalar(90, 100, 110));
+  FrameResult r;
+  r.ego_lane.state = LaneState::Detected;
+  r.ego_lane.available = true;
+  r.ego_lane.obs_l = r.ego_lane.obs_r = true;
+  for (double y = 400; y < H; y += 20) {
+    r.ego_lane.rows_y.push_back(y);
+    r.ego_lane.xl.push_back(400);
+    r.ego_lane.xr.push_back(880);
+  }
+  Renderer on, off;
+  r.ldw.enabled = true;
+  const cv::Mat with_label = on.render(frame, r, {View::Detections}).at(View::Detections);
+  r.ldw.enabled = false;
+  const cv::Mat without = off.render(frame, r, {View::Detections}).at(View::Detections);
+
+  // the label sits at (12, H - 46); everything outside its box is identical, inside it the labels differ
+  const cv::Rect label(12, H - 46 - 30, 170, 32);
+  cv::Mat diff;
+  cv::absdiff(with_label, without, diff);
+  cv::Mat outside = diff.clone();
+  outside(label).setTo(cv::Scalar::all(0));
+  CHECK(cv::countNonZero(outside.reshape(1)) == 0);
+  CHECK(cv::countNonZero(diff(label).clone().reshape(1)) > 0);
+  // with the label off, the label box holds only the lane fill: same as the frame region blended by the lane
+  // polygon, which is absent at x < 400, so those pixels are the untouched frame
+  const cv::Rect left(12, H - 46 - 30, 170, 32);
+  cv::Mat untouched = frame(left).clone(), got = without(left).clone();
+  cv::absdiff(untouched, got, diff);
+  CHECK(cv::countNonZero(diff.reshape(1)) == 0);
 }

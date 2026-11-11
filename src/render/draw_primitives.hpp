@@ -23,7 +23,7 @@ struct FcwView {
 void put_label(cv::Mat& img, const std::string& text, int x, int y, const cv::Scalar& color, double scale = 0.6,
                int thick = 2);
 void draw_lanes(cv::Mat& img, const std::vector<Lane>& lanes, const EgoLane& ego, const std::string& ldw_side,
-                bool ldw_armed);
+                bool ldw_armed, bool ldw_enabled);
 void draw_detections(cv::Mat& img, const std::vector<Object>& dets, const cv::Mat& frame_raw,
                      const std::optional<LeadVehicle>& lead);
 void draw_fcw_box(cv::Mat& img, const Box& box, const std::string& level, int frame_i);

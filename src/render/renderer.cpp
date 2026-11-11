@@ -98,7 +98,7 @@ std::map<View, cv::Mat> Renderer::render(const cv::Mat& frame, const FrameResult
   const bool rlr = s.alerts.update_rlr(r.t, r.rlr);
 
   auto draw_dets_on = [&](cv::Mat& img) {
-    render::draw_lanes(img, r.lanes, r.ego_lane, av.ldw_side, r.ldw.armed);
+    render::draw_lanes(img, r.lanes, r.ego_lane, av.ldw_side, r.ldw.armed, r.ldw.enabled);
     render::draw_detections(img, r.objects, frame, r.lead);
     if (r.lead) {
       const bool live = av.fcw && !av.fcw->held;
