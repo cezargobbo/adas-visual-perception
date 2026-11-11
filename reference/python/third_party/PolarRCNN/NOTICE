@@ -1,0 +1,5 @@
+Models/Backbone/dla34.py is taken from PolarRCNN:
+https://github.com/ShqWW/PolarRCNN
+
+The authors declare no license. The file is vendored here unmodified, for
+non-commercial academic use, with credit to the original authors.
