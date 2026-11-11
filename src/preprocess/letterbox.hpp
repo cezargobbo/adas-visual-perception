@@ -12,6 +12,7 @@ struct LetterboxInfo {
   float scale;               // r = min(imgsz/h, imgsz/w)
   float pad_left, pad_top;   // padding added on the left / top, in letterboxed pixels
   int out_w, out_h;          // letterboxed (network input) size
+  int new_w, new_h;          // resized (unpadded) image size inside the letterbox
 };
 
 // Rectangular letterbox geometry (Ultralytics, auto=True, centred). Throws on empty frame.

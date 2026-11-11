@@ -71,6 +71,8 @@ LetterboxInfo letterbox_shape(cv::Size frame, int imgsz, int stride) {
   li.scale = static_cast<float>(g.r);
   li.pad_left = static_cast<float>(g.left);
   li.pad_top = static_cast<float>(g.top);
+  li.new_w = g.new_w;
+  li.new_h = g.new_h;
   li.out_w = g.new_w + g.left + g.right;
   li.out_h = g.new_h + g.top + g.bottom;
   return li;

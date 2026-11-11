@@ -1,3 +1,4 @@
+#include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include <cuda_runtime_api.h>
@@ -48,10 +49,10 @@ TEST_CASE("decode_yolo") {
   CHECK(objs[0].score == 0.31f);
   CHECK(objs[0].cls == 2);
   CHECK(objs[0].track_id == -1);
-  CHECK(objs[0].box.x1 == (100 - info.pad_left) / info.scale);
-  CHECK(objs[0].box.y1 == (100 - info.pad_top) / info.scale);
-  CHECK(objs[0].box.x2 == (200 - info.pad_left) / info.scale);
-  CHECK(objs[0].box.y2 == (200 - info.pad_top) / info.scale);
+  CHECK(objs[0].box.x1 == Catch::Approx((100 - info.pad_left) / info.scale).margin(1e-3));
+  CHECK(objs[0].box.y1 == Catch::Approx((100 - info.pad_top) / info.scale).margin(1e-3));
+  CHECK(objs[0].box.x2 == Catch::Approx((200 - info.pad_left) / info.scale).margin(1e-3));
+  CHECK(objs[0].box.y2 == Catch::Approx((200 - info.pad_top) / info.scale).margin(1e-3));
   CHECK(objs[1].box.x1 == 0.f);
   CHECK(objs[1].box.y1 == 0.f);
   CHECK(objs[1].box.x2 >= objs[1].box.x1);
@@ -61,6 +62,38 @@ TEST_CASE("decode_yolo") {
   for (auto& o : objs) {
     CHECK(o.box.x2 >= o.box.x1);
     CHECK(o.box.y2 >= o.box.y1);
+  }
+}
+
+// Expected values generated with ultralytics.utils.ops.scale_boxes (img1=(out_h,out_w), img0=(474,854)).
+TEST_CASE("decode_yolo matches Ultralytics scale_boxes on 854x474") {
+  struct Case { int imgsz; int oh, ow; float exp[3][4]; };
+  const Case cases[] = {
+      {960, 544, 960,
+       {{88.95833333333334f, 84.48405253283303f, 266.875f, 217.8799249530957f},
+        {0.0f, 0.0f, 35.583333333333336f, 13.339587242026267f},
+        {845.1041666666667f, 474.0f, 854.0f, 474.0f}}},
+      {1280, 736, 1280,
+       {{66.71875f, 58.081690140845076f, 200.15624999999997f, 158.22253521126763f},
+        {0.0f, 0.0f, 26.687499999999996f, 4.673239436619719f},
+        {847.3281249999999f, 474.0f, 854.0f, 474.0f}}}};
+  for (const auto& c : cases) {
+    const LetterboxInfo info = letterbox_shape(cv::Size(854, 474), c.imgsz);
+    REQUIRE(info.out_h == c.oh);
+    REQUIRE(info.out_w == c.ow);
+    std::vector<float> out(300 * 6, 0.f);
+    setRow(out, 0, 100, 100, 300, 250, 0.9f, 2);
+    setRow(out, 1, -5, -3, 40, 20, 0.9f, 2);
+    setRow(out, 2, static_cast<float>(c.ow - 10), static_cast<float>(c.oh - 5),
+           static_cast<float>(c.ow + 4), static_cast<float>(c.oh + 3), 0.9f, 2);
+    auto objs = decode_yolo(out.data(), info, cv::Size(854, 474), 0.3f, {2});
+    REQUIRE(objs.size() == 3);
+    for (int i = 0; i < 3; ++i) {
+      CHECK(objs[i].box.x1 == Catch::Approx(c.exp[i][0]).margin(1e-3));
+      CHECK(objs[i].box.y1 == Catch::Approx(c.exp[i][1]).margin(1e-3));
+      CHECK(objs[i].box.x2 == Catch::Approx(c.exp[i][2]).margin(1e-3));
+      CHECK(objs[i].box.y2 == Catch::Approx(c.exp[i][3]).margin(1e-3));
+    }
   }
 }
 

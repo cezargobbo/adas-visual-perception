@@ -1,6 +1,7 @@
 #include "models/yolo_detector.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <stdexcept>
 
 #include "cuda/cuda_check.hpp"
@@ -11,6 +12,13 @@ std::vector<Object> decode_yolo(const float* out, const LetterboxInfo& info, cv:
                                 float conf, const std::vector<int>& classes) {
   constexpr int kRows = 300;
   const float W = static_cast<float>(frame.width), H = static_cast<float>(frame.height);
+  // Ultralytics scale_boxes (ratio_pad=None): per-axis gains from the rounded resized size and
+  // pad = round((out - new)/2 - 0.1) (half-to-even, like Python's round()).
+  const double gain_x = static_cast<double>(info.new_w) / frame.width;
+  const double gain_y = static_cast<double>(info.new_h) / frame.height;
+  const double pad_x = std::nearbyint((info.out_w - info.new_w) / 2.0 - 0.1);
+  const double pad_y = std::nearbyint((info.out_h - info.new_h) / 2.0 - 0.1);
+  auto clampf = [](double v, float hi) { return static_cast<float>(std::clamp(v, 0.0, static_cast<double>(hi))); };
   std::vector<Object> res;
   for (int i = 0; i < kRows; ++i) {
     const float* r = out + i * 6;
@@ -18,8 +26,8 @@ std::vector<Object> decode_yolo(const float* out, const LetterboxInfo& info, cv:
     if (!(score > conf) || score <= 0.f) continue;
     const int cls = static_cast<int>(r[5]);
     if (std::find(classes.begin(), classes.end(), cls) == classes.end()) continue;
-    auto cx = [&](float v) { return std::clamp((v - info.pad_left) / info.scale, 0.f, W); };
-    auto cy = [&](float v) { return std::clamp((v - info.pad_top) / info.scale, 0.f, H); };
+    auto cx = [&](float v) { return clampf((static_cast<double>(v) - pad_x) / gain_x, W); };
+    auto cy = [&](float v) { return clampf((static_cast<double>(v) - pad_y) / gain_y, H); };
     Object o;
     o.box = {cx(r[0]), cy(r[1]), cx(r[2]), cy(r[3])};
     o.cls = cls;
