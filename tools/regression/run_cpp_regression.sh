@@ -52,6 +52,7 @@ cd "$repo"
 py=".venv/bin/python"
 [[ -x "$py" ]] || py="python3"  # compare_alerts.py is stdlib-only
 ref="tests/regression/$against/$profile"
+[[ -d "$ref" ]] || { echo "no baseline dir for --against $against --profile $profile: $ref" >&2; exit 2; }
 dest="$out/$profile${prec:+_$prec}"
 mkdir -p "$dest"
 extra=(); [[ -n "$prec" ]] && extra=(--det-precision "$prec")

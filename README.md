@@ -106,7 +106,7 @@ The seven videos of the release, in events (FCW + LDW + RLR):
 | `red_crop_12_30fps` | 1 / 1 | identical | 1 / 1 | identical |
 | `red_crop_13_30fps` | 1 / 1 | identical | 1 / 1 | identical |
 
-Speed, in frames per second averaged over the 17 videos weighted by frames, with `--dry --no-seg` (decode, lanes,
+Speed recorded when the port was made, in frames per second averaged over the 17 videos weighted by frames, with `--dry --no-seg` (decode, lanes,
 detection, tracking and ADAS, no encoding), on an RTX 4070 Laptop GPU:
 
 | Profile | C++ | Python prototype |

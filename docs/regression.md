@@ -132,7 +132,7 @@ printed as diagnostics.
 ### The borderline rule for FCW
 
 A TTC threshold is a hard line on a continuous quantity. The two pipelines run different inference engines (PyTorch
-for the Python prototype, TensorRT for the C++), so boxes differ by float noise, and a smoothed TTC that touches the 2.7 s
+for the Python prototype, TensorRT for the C++), so boxes differ by float noise, and a smoothed TTC can stay under the 2.7 s
 threshold for a few more frames in one pipeline than in the other. Then one pipeline raises the warning and the other
 does not, although both computed almost the same numbers. Per-frame equality across engines is not attainable at such a
 crossing, and loosening the 0.5 s tolerance would not help, because the event is missing, not late.
@@ -172,7 +172,7 @@ below 2.7 for fewer than the 9 consecutive frames the warning needs (the per-fra
 Both minima are within `1.02 x` the threshold, which is what the borderline rule above accepts. The accurate profile uses the fp16 detector by default,
 which is the configuration behind the 17 of 17 result.
 
-Speed (frames-weighted mean over the 17 videos, frames per second; C++ is `video_demo --dry --no-seg`, Python is the
+Speed recorded when the port was made (frames-weighted mean over the 17 videos, frames per second; C++ is `video_demo --dry --no-seg`, Python is the
 wall time of the Python prototype run, which includes model loading and shares the GPU, so it is noisy):
 
 | Profile | C++ | Python |

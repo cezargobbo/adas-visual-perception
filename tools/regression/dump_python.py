@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Dump per-frame intermediate results of the Python prototype pipeline.
 
-The dump is the ground truth the C++ tests compare against. It imports
+The dump is the recorded Python prototype trace that the C++ replay tests and
+compare_dumps.py compare against. It imports
 prototype/python/dashcam_vision.py (never modified) and runs the models exactly as
 the main loop does: same Ultralytics ``track()`` call, same ``Segmenter``, same
 ``PolarLaneDetector``, same ``--seg-every`` reuse rule (segmentation runs on frames
