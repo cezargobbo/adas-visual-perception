@@ -1,5 +1,5 @@
 #pragma once
-// Helpers shared by the tests that replay the reference trace (adas.jsonl / meta.json).
+// Helpers shared by the tests that replay the Python prototype trace (adas.jsonl / meta.json).
 
 #include <algorithm>
 #include <cmath>

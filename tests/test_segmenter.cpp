@@ -81,14 +81,14 @@ TEST_CASE("seg upsample+argmax matches torch") {
   cudaFree(d_lg);
 }
 
-TEST_CASE("Segmenter matches reference dump") {
+TEST_CASE("Segmenter matches Python prototype dump") {
   const char* vdir = std::getenv("ADASVP_VIDEOS_DIR");
   if (!vdir) SKIP("ADASVP_VIDEOS_DIR not set");
   const fs::path video = fs::path(vdir) / "sp1_crop_30fps.mp4";
   const fs::path dumpdir = fs::path(ADASVP_SOURCE_DIR) / "outputs/dumps/fast/sp1_crop_30fps/seg";
   const fs::path onnx = fs::path(ADASVP_SOURCE_DIR) / "models/segformer-b1-cityscapes-1024x576.onnx";
   if (!fs::exists(video)) SKIP("video not found");
-  if (!fs::exists(dumpdir)) SKIP("reference dump not found");
+  if (!fs::exists(dumpdir)) SKIP("Python prototype dump not found");
   if (!fs::exists(onnx)) SKIP("segformer ONNX not found");
 
   const fs::path cache = fs::temp_directory_path() / "adasvp_test_engine_cache_seg";

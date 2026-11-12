@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Render the HUD views of the Python reference from a recorded trace.
 
-Uses the drawing code of reference/python/dashcam_vision.py (AlertDisplay, draw_lanes, draw_detections,
+Uses the drawing code of prototype/python/dashcam_vision.py (AlertDisplay, draw_lanes, draw_detections,
 draw_lead, draw_fcw_box, draw_alerts, Segmenter.overlay, draw_legend) with the state recorded by
-dump_reference.py --adas (adas.jsonl + frames.jsonl + seg/*.png), driven like the main loop: one AlertDisplay
+dump_python.py --adas (adas.jsonl + frames.jsonl + seg/*.png), driven like the main loop: one AlertDisplay
 update per frame, blink counter = frame index inside the rendered window (the window starts with a fresh
 AlertDisplay, like a fresh C++ Renderer).
 
-    render_reference.py --trace outputs/dumps/fast/STEM --frames A:B --out OUT [--videos-dir DIR]
+    render_python.py --trace outputs/dumps/fast/STEM --frames A:B --out OUT [--videos-dir DIR]
 
 Writes OUT/{det,seg,comb}_NNNNNN.png (NNNNNN = trace frame index i, A <= i < B) and OUT/manifest.json
 (video, window, seg PNG used by every frame: the nearest one in time, ties to the earlier).
@@ -27,11 +27,11 @@ import cv2
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "reference" / "python"))
+sys.path.insert(0, str(ROOT / "prototype" / "python"))
 
 
-def load_reference():
-    spec = importlib.util.spec_from_file_location("dashcam_vision_ref", ROOT / "reference" / "python" / "dashcam_vision.py")
+def load_prototype():
+    spec = importlib.util.spec_from_file_location("dashcam_vision_proto", ROOT / "prototype" / "python" / "dashcam_vision.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -61,7 +61,7 @@ def main():
     trace, out = Path(a.trace), Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
 
-    dv = load_reference()
+    dv = load_prototype()
     import torch
     meta = json.load(open(trace / "meta.json"))
     ys = np.array(meta["adas"]["ego_ys"])

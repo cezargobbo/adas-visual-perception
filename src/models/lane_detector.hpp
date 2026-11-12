@@ -1,6 +1,6 @@
 #pragma once
 // Polar R-CNN (CurveLanes, DLA34) TensorRT lane detector. Not part of the public API.
-// Spec: reference/python/lanes_polar.py (GlobalPolarHead keep filter, decode, PolarLaneDetector).
+// Spec: prototype/python/lanes_polar.py (GlobalPolarHead keep filter, decode, PolarLaneDetector).
 #include <cuda_runtime_api.h>
 
 #include <memory>

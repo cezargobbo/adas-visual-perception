@@ -1,6 +1,6 @@
 #pragma once
 // Lead-vehicle selection (ego-lane or trapezoid corridor, hysteresis by track id) and monocular distance
-// (per-track median of 9 + EMA). Line-by-line port of LeadVehicleEstimator of the reference
+// (per-track median of 9 + EMA). Line-by-line port of LeadVehicleEstimator of the Python prototype
 // (dashcam_vision.py). Internal math is double.
 
 #include <deque>

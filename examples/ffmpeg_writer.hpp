@@ -1,6 +1,6 @@
 #pragma once
 // Video output through an ffmpeg child process fed with raw BGR frames on its stdin (H.264, audio copied
-// from the source segment), like open_writer of the Python reference.
+// from the source segment), like open_writer of the Python prototype.
 #include <string>
 #include <vector>
 

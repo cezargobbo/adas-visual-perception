@@ -3,9 +3,9 @@
 The procedure and a summary of the results are in [docs/regression.md](../../docs/regression.md); this file is the
 detailed tool reference.
 
-- `dump_reference.py`: dumps per-frame results (`frames.jsonl`, `seg/NNNNNN.png`, `meta.json`) of the Python
+- `dump_python.py`: dumps per-frame results (`frames.jsonl`, `seg/NNNNNN.png`, `meta.json`) of the Python
   reference pipeline.
-- `dump_reference.py ... --adas` also writes `adas.jsonl` (schema below) and an `adas` object in `meta.json`;
+- `dump_python.py ... --adas` also writes `adas.jsonl` (schema below) and an `adas` object in `meta.json`;
   `frames.jsonl` and `seg/` are unchanged by the flag.
 - `make_tl_fixtures.py`: cuts up to 60 traffic-light crops (class 9 boxes) out of the published test videos
   into `tests/fixtures/tl_state_NNN.png`, with the Python `traffic_light_state` result in
@@ -37,29 +37,29 @@ detailed tool reference.
   `meta.json`, else the reference defaults) within +-0.5 s of the event. Any other mismatch, and any LDW/RLR
   mismatch, fails (non-zero exit). The rule exists because per-frame equality across inference engines (torch vs
   TensorRT) is unattainable at a threshold crossing, while the logic replay tests prove the logic itself is exact.
-- `render_reference.py --trace DIR --frames A:B --out OUT`: renders the Detections (`det_*`), Segmentation
+- `render_python.py --trace DIR --frames A:B --out OUT`: renders the Detections (`det_*`), Segmentation
   (`seg_*`) and Combined (`comb_*`) PNGs of the Python drawing from a trace that has `adas.jsonl` (needs the
   video under `ADASVP_VIDEOS_DIR`) plus `manifest.json`. The C++ test `Renderer matches the Python drawing`
   compares the `Renderer` against `outputs/render_ref/STEM_A_B/` (gates: >= 99.5% identical pixels, mean abs
   diff <= 0.5 per channel); `ADASVP_RENDER_OUT=DIR` makes the test keep its own renders.
-- `make_reference.sh`: regenerates the Python reference alerts.
+- `make_python_alerts.sh`: regenerates the Python reference alerts.
 - `compare_alerts.py REF.csv CPP.csv [--tol 0.5]`: strict event-level comparison of two alert CSVs. Events are matched
   by `type` + `level_side` within +-tol seconds on `time_s`; prints the pairs, the missing (reference only) and the
   extra (C++ only) events and exits 0 only when nothing is missing or extra. The tolerance is never loosened.
 - `run_cpp_regression.sh --videos-dir DIR --profile fast|accurate [--dry] [--det-precision fp16|fp32]`: runs
-  `video_demo --no-seg` (the flags of `make_reference.sh`) on the 17 videos of `videos.txt` and runs `compare_alerts.py`
-  against `tests/regression/reference/<profile>/`; one line per video, exit 0 only if all 17 pairs are identical.
+  `video_demo --no-seg` (the flags of `make_python_alerts.sh`) on the 17 videos of `videos.txt` and runs `compare_alerts.py`
+  against `tests/regression/python/<profile>/`; one line per video, exit 0 only if all 17 pairs are identical.
   `--dry` (hidden `video_demo` flag) skips the output videos but still writes `<prefix>_alerts.csv`.
 
 ```
-python tools/regression/dump_reference.py VIDEO --profile fast --out outputs/dumps/fast/STEM
+python tools/regression/dump_python.py VIDEO --profile fast --out outputs/dumps/fast/STEM
 build/native-release/adasvp_dump VIDEO --profile fast --out outputs/dumps_cpp/fast/STEM
 python tools/regression/compare_dumps.py outputs/dumps/fast/STEM outputs/dumps_cpp/fast/STEM
 ```
 
 ## End-to-end fps (RTX 4070 Laptop, no recording for C++)
 
-Python = frames / wall time of `dump_reference.py` (includes model loading and PNG/JSON writing, `--seg-every 30`);
+Python = frames / wall time of `dump_python.py` (includes model loading and PNG/JSON writing, `--seg-every 30`);
 C++ = `adasvp_dump --no-write` (seg every 30 frames). Python timings are noisy (shared GPU).
 
 | profile | video | frames | Python fps | C++ fps |
@@ -108,7 +108,7 @@ the defaults used, the derived windows (`ego_hold_frames`, `ego_persist`, `fcw_o
 ## Event-level regression: C++ `video_demo` vs Python reference (17 videos x 2 profiles)
 
 `run_cpp_regression.sh --videos-dir DIR --profile P --dry` (RTX 4070 Laptop, dry run = no encoding, `--no-seg`,
-default detector of each profile at the time of these runs: fast fp16, accurate fp32) against `tests/regression/reference/P/` (strict, +-0.5 s, type + level/side).
+default detector of each profile at the time of these runs: fast fp16, accurate fp32) against `tests/regression/python/P/` (strict, +-0.5 s, type + level/side).
 The counts are all alert events (FCW + LDW + RLR). "Python fps" = frames / wall time of the reference run in
 `summary.txt` (model loading and the detections video included, shared GPU: noisy); "C++ fps" = the `total` fps
 printed by `video_demo` at the end of the run (decode + lanes + detection + tracking + ADAS, no encoding).

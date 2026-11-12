@@ -1,5 +1,5 @@
 #pragma once
-// HUD renderer: draws a FrameResult over its frame exactly like the drawing of the Python reference
+// HUD renderer: draws a FrameResult over its frame exactly like the drawing of the Python prototype
 // (dashcam_vision.py: draw_dets_on, Segmenter.overlay + draw_legend).
 //
 // Design decision: the drawing API is a stateful Renderer, not a stateless draw(frame, result). The alert

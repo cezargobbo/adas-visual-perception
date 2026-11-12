@@ -36,7 +36,7 @@ Object car(int id, float x1, float y1, float x2, float y2, int cls = 2) {
 void replay(const std::string& stem) {
   const fs::path dir = fs::path(ADASVP_SOURCE_DIR) / "outputs/dumps/fast" / stem;
   if (!fs::exists(dir / "adas.jsonl") || !fs::exists(dir / "meta.json")) {
-    SKIP("reference trace missing: " << (dir / "adas.jsonl").string());
+    SKIP("Python prototype trace missing: " << (dir / "adas.jsonl").string());
   }
   json meta;
   {
@@ -51,7 +51,7 @@ void replay(const std::string& stem) {
   LeadVehicleEstimator est(W, H, df["hfov"].get<double>(), df["cam_height"].get<double>(),
                            df["horizon"].get<double>(), df["corridor_bottom"].get<double>(),
                            df["corridor_top"].get<double>(), ad["lead_hold_frames"].get<int>());
-  const bool lane_corridor = true;  // reference default (--lane-corridor), not recorded in meta.json
+  const bool lane_corridor = true;  // Python prototype default (--lane-corridor), not recorded in meta.json
 
   std::ifstream f(dir / "adas.jsonl");
   REQUIRE(f.good());
@@ -122,8 +122,8 @@ void replay(const std::string& stem) {
 
 }  // namespace
 
-TEST_CASE("LeadVehicleEstimator replays the reference trace") { replay("sp1_crop_30fps"); }
-TEST_CASE("LeadVehicleEstimator replays the reference trace (second video)") { replay("sp1_crop_4_30fps"); }
+TEST_CASE("LeadVehicleEstimator replays the Python prototype trace") { replay("sp1_crop_30fps"); }
+TEST_CASE("LeadVehicleEstimator replays the Python prototype trace (second video)") { replay("sp1_crop_4_30fps"); }
 
 TEST_CASE("distance blends width and ground cues, ground only when cut, width only near the horizon") {
   auto est = make_est(1920, 1080);

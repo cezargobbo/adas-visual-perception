@@ -49,7 +49,7 @@ json load_defaults() {
 
 }  // namespace
 
-TEST_CASE("cli defaults match the argparse defaults of the reference", "[cli]") {
+TEST_CASE("cli defaults match the argparse defaults of the Python prototype", "[cli]") {
   const json all = load_defaults();
   const json& d = all["defaults"];
   auto p = parse({"in.mp4"});
@@ -98,7 +98,7 @@ TEST_CASE("cli defaults match the argparse defaults of the reference", "[cli]") 
   CHECK(!o.adas_debug);
 }
 
-TEST_CASE("cli profile defaults match the PROFILES of the reference", "[cli]") {
+TEST_CASE("cli profile defaults match the PROFILES of the Python prototype", "[cli]") {
   const json all = load_defaults();
   for (const std::string name : {"accurate", "fast"}) {
     auto p = parse({"in.mp4", "--profile", name});
@@ -319,7 +319,7 @@ TEST_CASE("alerts csv header and numeric formatting follow log_event", "[cli]") 
   CHECK(format_alert_row(rlr) == "50.00,1500,RLR,red,,,,,,,3.1");
 }
 
-TEST_CASE("ffmpeg writer command line mirrors the reference", "[cli]") {
+TEST_CASE("ffmpeg writer command line mirrors the Python prototype", "[cli]") {
   WriterSpec s;
   s.width = 1920;
   s.height = 1080;

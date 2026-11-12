@@ -27,7 +27,7 @@ import torch.nn.functional as F
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools" / "export"))
-sys.path.insert(0, str(ROOT / "reference" / "python"))
+sys.path.insert(0, str(ROOT / "prototype" / "python"))
 
 from preproc import letterbox  # noqa: E402
 

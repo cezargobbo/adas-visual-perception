@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare a C++ dump (adasvp_dump) against a Python reference dump (dump_reference.py).
+"""Compare a C++ dump (adasvp_dump) against a Python reference dump (dump_python.py).
 
 Usage: compare_dumps.py REF_DIR CPP_DIR [--adas]
 
@@ -11,7 +11,7 @@ Gates (per video; exit code 0 only if all pass):
          mean |dx| > 20 px are greedy cross-lane mismatches: reported separately, excluded from the
          point-count gate. Point count over the true pairs: >= 99.9% with diff <= 1 and max diff <= 2.
   seg    >= 99% equal pixels in every PNG; the reference must contain at least one PNG
-With --adas (both dirs hold adas.jsonl, written by dump_reference.py --adas / adasvp_dump --adas) the alert
+With --adas (both dirs hold adas.jsonl, written by dump_python.py --adas / adasvp_dump --adas) the alert
 events are also compared. Gate: every event (type + side/level: FCW warning|critical, LDW left|right, RLR red)
 of one dump has a partner of the other within +-0.5 s (one-to-one, greedy by time difference). Diagnostics, not
 gates: ego.state equal on >= 97% of the frames; lead id equal (under the majority C++ -> Python id mapping,

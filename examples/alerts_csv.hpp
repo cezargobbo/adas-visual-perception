@@ -1,5 +1,5 @@
 #pragma once
-// Alerts CSV of the Python reference (log_event): header, numeric formatting.
+// Alerts CSV of the Python prototype (log_event): header, numeric formatting.
 #include <string>
 
 #include "adasvp/adasvp.hpp"

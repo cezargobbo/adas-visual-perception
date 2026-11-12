@@ -1,6 +1,6 @@
 # Regression against the Python reference
 
-The C++ library is a port of the Python pipeline in `reference/python/dashcam_vision.py`. This page describes how
+The C++ library is a port of the Python pipeline in `prototype/python/dashcam_vision.py`. This page describes how
 the two are compared, in three levels from coarse to fine, and summarises the recorded results. The detailed tool
 reference (every flag, the per-video tables, the `adas.jsonl` schema) is in
 [tools/regression/README.md](../tools/regression/README.md). How the stages work is in [algorithm.md](algorithm.md).
@@ -23,7 +23,7 @@ What is compared:
   models in `models/`. See the README.
 - For the Python side: the `.venv` of the README (`requirements.txt`) and the model weights set up with
   `tools/setup_models.py`. The Python reference runs on the same GPU, so it is slower and noisy to time.
-- The videos. The reference CSVs in `tests/regression/reference/{fast,accurate}/` cover the 17 videos listed in
+- The videos. The reference CSVs in `tests/regression/python/{fast,accurate}/` cover the 17 videos listed in
   `tools/regression/videos.txt`. Seven of them are published in the release and listed in
   `tools/regression/videos_public.txt`; the other ten are not distributed. Point `--videos-dir` at the directory
   that holds them, with `red_crop_*` clips in a `redlights/` subdirectory, which is the layout the download script
@@ -37,13 +37,13 @@ you only need the Python side to regenerate those CSVs or the traces.
 ### 1. Reference alerts from the Python script
 
 ```bash
-tools/regression/make_reference.sh --videos-dir "$ADASVP_VIDEOS_DIR" --profile fast
-tools/regression/make_reference.sh --videos-dir "$ADASVP_VIDEOS_DIR" --profile accurate
+tools/regression/make_python_alerts.sh --videos-dir "$ADASVP_VIDEOS_DIR" --profile fast
+tools/regression/make_python_alerts.sh --videos-dir "$ADASVP_VIDEOS_DIR" --profile accurate
 ```
 
 For every video in `videos.txt` it runs `dashcam_vision.py --profile P --no-seg` (detection, lanes and the ADAS
 modules; segmentation does not influence any alert), copies the `<stem>_alerts.csv` files to
-`tests/regression/reference/P/` and writes a `summary.txt` there with the wall time and the FCW / LDW / RLR counts
+`tests/regression/python/P/` and writes a `summary.txt` there with the wall time and the FCW / LDW / RLR counts
 per video. The committed CSVs are the result of this step, so you only run it to regenerate them (it needs all 17
 videos).
 
@@ -55,7 +55,7 @@ tools/regression/run_cpp_regression.sh --videos-dir "$ADASVP_VIDEOS_DIR" --profi
 ```
 
 For each video it runs `video_demo --no-seg --profile P` (the same flags as the reference run), then
-`compare_alerts.py` against `tests/regression/reference/P/<stem>_alerts.csv`. It prints one line per video and exits
+`compare_alerts.py` against `tests/regression/python/P/<stem>_alerts.csv`. It prints one line per video and exits
 0 only if every pair is identical. `--dry` skips the output videos but still writes the alerts CSV, which makes the
 run about as fast as the decode and inference allow. `--det-precision fp16|fp32` overrides the detector engine
 precision of the profile.
@@ -88,7 +88,7 @@ When a pair fails, dump both pipelines on that video and compare the traces. Wit
 state of the ADAS modules frame by frame:
 
 ```bash
-python tools/regression/dump_reference.py VIDEO --profile fast --adas --out outputs/dumps/fast/STEM
+python tools/regression/dump_python.py VIDEO --profile fast --adas --out outputs/dumps/fast/STEM
 build/native-release/adasvp_dump VIDEO --profile fast --adas --out outputs/dumps_cpp/fast/STEM
 python tools/regression/compare_dumps.py outputs/dumps/fast/STEM outputs/dumps_cpp/fast/STEM --adas
 ```
@@ -160,7 +160,7 @@ videos, in `ADASVP_VIDEOS_DIR`):
 ```bash
 # traces: adas.jsonl, frames.jsonl, seg/, meta.json, for the three videos the tests read
 for v in sp1_crop_30fps sp1_crop_4_30fps redlights/red_crop_11_30fps; do
-  python tools/regression/dump_reference.py "$ADASVP_VIDEOS_DIR/$v.mp4" --profile fast --adas \
+  python tools/regression/dump_python.py "$ADASVP_VIDEOS_DIR/$v.mp4" --profile fast --adas \
       --out outputs/dumps/fast/$(basename "$v")
 done
 ```
@@ -169,12 +169,12 @@ The `Renderer` test (`Renderer matches the Python drawing`) compares C++ drawing
 drawing code renders from those traces:
 
 ```bash
-python tools/regression/render_reference.py --trace outputs/dumps/fast/STEM --frames A:B \
+python tools/regression/render_python.py --trace outputs/dumps/fast/STEM --frames A:B \
     --out outputs/render_ref/STEM_A_B
 ```
 
 The windows (`STEM`, `A`, `B`) are listed in `tests/test_render.cpp`; the directory name must be `STEM_A_B` because
-the test builds it from the window. `render_reference.py` reads the videos from `--videos-dir` (default
+the test builds it from the window. `render_python.py` reads the videos from `--videos-dir` (default
 `ADASVP_VIDEOS_DIR`). The test requires at least 99.5% identical pixels and a mean absolute difference of at most
 0.5 per channel; `ADASVP_RENDER_OUT=DIR` makes it keep its own renders for inspection.
 

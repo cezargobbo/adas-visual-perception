@@ -120,7 +120,7 @@ TEST_CASE("Renderer matches the Python drawing") {
     const fs::path trace = src / "outputs/dumps/fast" / w.trace;
     const fs::path ref = src / "outputs/render_ref" / name;
     if (!fs::exists(ref / "manifest.json") || !fs::exists(trace / "adas.jsonl")) {
-      WARN("no reference render for " << name << " (tools/regression/render_reference.py)");
+      WARN("no Python prototype render for " << name << " (tools/regression/render_python.py)");
       ++missing;
       continue;
     }
@@ -194,7 +194,7 @@ TEST_CASE("Renderer matches the Python drawing") {
     ++checked;
   }
   std::cout << "[render] windows checked: " << checked << " of " << windows.size() << "\n";
-  if (checked == 0) SKIP("no reference render available");
+  if (checked == 0) SKIP("no Python prototype render available");
   // some windows have their inputs and others do not: a partial check must not pass silently
   CHECK(missing == 0);
 }

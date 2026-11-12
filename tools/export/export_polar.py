@@ -20,7 +20,7 @@ import torch
 import torch.nn as nn
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "reference" / "python"))
+sys.path.insert(0, str(ROOT / "prototype" / "python"))
 import lanes_polar as lp  # noqa: E402
 
 OPSET = 17

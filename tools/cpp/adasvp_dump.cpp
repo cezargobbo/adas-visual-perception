@@ -1,6 +1,6 @@
-// Dumps per-frame results in the format of tools/regression/dump_reference.py:
+// Dumps per-frame results in the format of tools/regression/dump_python.py:
 //   DIR/frames.jsonl, DIR/seg/NNNNNN.png (every --seg-every frames), DIR/meta.json
-// With --adas also DIR/adas.jsonl (same schema as dump_reference.py --adas, outputs only).
+// With --adas also DIR/adas.jsonl (same schema as dump_python.py --adas, outputs only).
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/videoio.hpp>
 
@@ -36,7 +36,7 @@ void num(std::ostream& o, double v) {
   o << b;
 }
 
-// JSON number; non-finite values are the strings "inf", "-inf", "nan" (like dump_reference.py).
+// JSON number; non-finite values are the strings "inf", "-inf", "nan" (like dump_python.py).
 void jnum(std::ostream& o, double v) {
   if (std::isnan(v)) o << "\"nan\"";
   else if (std::isinf(v)) o << (v > 0 ? "\"inf\"" : "\"-inf\"");
@@ -165,7 +165,7 @@ int main(int argc, char** argv) {
   else if (const char* e = std::getenv("ADASVP_MODELS_DIR")) cfg.models_dir = e;
   if (!det_precision.empty()) cfg.det_precision = det_precision == "fp32" ? Precision::FP32 : Precision::FP16;
   cfg.seg_every = seg_every;
-  cfg.frame_rate = fps;  // sizes the ADAS windows, like the fps of the reference loop
+  cfg.frame_rate = fps;  // sizes the ADAS windows, like the fps of the Python prototype loop
   std::unique_ptr<Pipeline> pipe_ptr;
   try {
     pipe_ptr = std::make_unique<Pipeline>(cfg);

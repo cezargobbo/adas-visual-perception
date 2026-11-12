@@ -6,7 +6,7 @@ alerts. This page describes each stage, with the thresholds exactly as they are 
 either a default of `adasvp::Config` (`include/adasvp/adasvp.hpp`, `src/config.cpp`) or a constant in the file named
 in the section.
 
-The C++ is a line-by-line port of the Python reference in `reference/python/dashcam_vision.py`. The stages that
+The C++ is a line-by-line port of the Python reference in `prototype/python/dashcam_vision.py`. The stages that
 follow keep the Python names (`EgoLaneTracker`, `LeadVehicleEstimator`, `FCWMonitor`, `LDWMonitor`, `RLRMonitor`)
 so the two can be read side by side; [regression.md](regression.md) describes how the equivalence is checked.
 

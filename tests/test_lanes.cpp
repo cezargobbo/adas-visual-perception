@@ -136,14 +136,14 @@ TEST_CASE("decode_polar edge cases") {
   CHECK(none.lanes.empty());
 }
 
-TEST_CASE("LaneDetector matches reference dump") {
+TEST_CASE("LaneDetector matches Python prototype dump") {
   const char* vdir = std::getenv("ADASVP_VIDEOS_DIR");
   if (!vdir) SKIP("ADASVP_VIDEOS_DIR not set");
   const fs::path video = fs::path(vdir) / "sp1_crop_30fps.mp4";
   const fs::path dump = fs::path(ADASVP_SOURCE_DIR) / "outputs/dumps/fast/sp1_crop_30fps/frames.jsonl";
   const fs::path onnx = fs::path(ADASVP_SOURCE_DIR) / "models/polarrcnn_curvelanes_dla34.onnx";
   if (!fs::exists(video)) SKIP("video not found");
-  if (!fs::exists(dump)) SKIP("reference dump not found");
+  if (!fs::exists(dump)) SKIP("Python prototype dump not found");
   if (!fs::exists(onnx)) SKIP("polar ONNX not found");
 
   const fs::path cache = fs::temp_directory_path() / "adasvp_test_engine_cache_polar";

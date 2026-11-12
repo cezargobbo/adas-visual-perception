@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Extracts the argparse defaults of reference/python/dashcam_vision.py into tests/fixtures/argparse_defaults.json.
+"""Extracts the argparse defaults of prototype/python/dashcam_vision.py into tests/fixtures/argparse_defaults.json.
 
 The reference builds its parser inside main(), so it cannot be imported on its own. This script imports the
 module (main() does not run), swaps argparse.ArgumentParser.parse_args for a hook that captures the parser and
@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-REF = ROOT / "reference" / "python" / "dashcam_vision.py"
+REF = ROOT / "prototype" / "python" / "dashcam_vision.py"
 
 
 class _Captured(Exception):
@@ -26,7 +26,7 @@ class _Captured(Exception):
 
 
 def extract():
-    spec = importlib.util.spec_from_file_location("dashcam_vision_ref", REF)
+    spec = importlib.util.spec_from_file_location("dashcam_vision_proto", REF)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
 

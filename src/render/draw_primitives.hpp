@@ -1,5 +1,5 @@
 #pragma once
-// Drawing helpers mirroring the Python reference (put_label, draw_lanes, draw_detections, draw_lead,
+// Drawing helpers mirroring the Python prototype (put_label, draw_lanes, draw_detections, draw_lead,
 // draw_alerts, draw_legend and the segmentation overlay). Colours are BGR.
 #include <optional>
 #include <set>

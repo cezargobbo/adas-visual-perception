@@ -34,7 +34,7 @@ struct Timings {
 };
 
 // ---------------------------------------------------------------------------------------------------------
-// ADAS result types. Field names are the snake_case names of the Python reference (dashcam_vision.py).
+// ADAS result types. Field names are the snake_case names of the Python prototype (dashcam_vision.py).
 // "No value" of the Python (None) is std::optional, or an empty string for the enum-like string fields.
 
 enum class LaneState { None, Partial, Estimated, Detected };

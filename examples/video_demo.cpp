@@ -1,5 +1,5 @@
 // video_demo: processes a dashcam video with the adasvp library and writes the annotated videos + alerts CSV
-// (or shows a live window). Same behaviour as main() of the Python reference (dashcam_vision.py).
+// (or shows a live window). Same behaviour as main() of the Python prototype (dashcam_vision.py).
 #include <cuda_runtime_api.h>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
@@ -44,7 +44,7 @@ std::string fmt(const char* f, ...) {
 // "%g" of Python's f"{x:g}"
 std::string g(double v) { return fmt("%g", v); }
 
-// put_label of the reference: filled box with black text
+// put_label of the Python prototype: filled box with black text
 void put_label(cv::Mat& img, const std::string& text, int x, int y, const cv::Scalar& color, double scale = 0.6,
                int thick = 2) {
   int bl = 0;
@@ -55,7 +55,7 @@ void put_label(cv::Mat& img, const std::string& text, int x, int y, const cv::Sc
               cv::LINE_AA);
 }
 
-// Per-stage timer (StageTimer of the reference): mean ms and fps per stage, in order of first use.
+// Per-stage timer (StageTimer of the Python prototype): mean ms and fps per stage, in order of first use.
 class StageTimer {
  public:
   void add(const std::string& k, double ms) {
@@ -106,7 +106,7 @@ const char* lane_state_name(LaneState s) {
   }
 }
 
-// One line of the --adas-debug trace (columns of the reference).
+// One line of the --adas-debug trace (columns of the Python prototype).
 std::string debug_row(int frame, int W, int H, const Options& o, const FrameResult& r) {
   const double nan = std::nan("");
   const EgoLane& e = r.ego_lane;

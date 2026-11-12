@@ -76,7 +76,7 @@ std::string events_str(const std::vector<std::pair<long, std::string>>& e) {
 
 void replay_fcw(const std::string& stem, const std::vector<std::pair<long, std::string>>& expected) {
   Trace tr;
-  if (!open_trace(stem, tr)) SKIP("reference trace missing: " << stem);
+  if (!open_trace(stem, tr)) SKIP("Python prototype trace missing: " << stem);
   const auto& ad = tr.meta["adas"];
   const auto& df = ad["defaults"];
   FCWMonitor mon(tr.meta["width"].get<int>(), tr.meta["height"].get<int>(), ad["fps_used"].get<double>(),
@@ -112,7 +112,7 @@ void replay_fcw(const std::string& stem, const std::vector<std::pair<long, std::
 
 void replay_ldw(const std::string& stem, const std::vector<std::pair<long, std::string>>& expected) {
   Trace tr;
-  if (!open_trace(stem, tr)) SKIP("reference trace missing: " << stem);
+  if (!open_trace(stem, tr)) SKIP("Python prototype trace missing: " << stem);
   const auto& ad = tr.meta["adas"];
   const auto& df = ad["defaults"];
   const int W = tr.meta["width"].get<int>(), H = tr.meta["height"].get<int>();
@@ -207,16 +207,16 @@ void replay_ldw(const std::string& stem, const std::vector<std::pair<long, std::
 
 }  // namespace
 
-TEST_CASE("FCWMonitor replays the reference trace") {
+TEST_CASE("FCWMonitor replays the Python prototype trace") {
   replay_fcw("sp1_crop_30fps", {{3835, "warning"}, {4656, "warning"}});
 }
-TEST_CASE("FCWMonitor replays the reference trace (second video)") {
+TEST_CASE("FCWMonitor replays the Python prototype trace (second video)") {
   replay_fcw("sp1_crop_4_30fps", {{1047, "warning"}, {1058, "critical"}, {2015, "warning"}, {4743, "warning"}});
 }
-TEST_CASE("LDWMonitor replays the reference trace") {
+TEST_CASE("LDWMonitor replays the Python prototype trace") {
   replay_ldw("sp1_crop_30fps", {{4593, "left"}, {4749, "right"}});
 }
-TEST_CASE("LDWMonitor replays the reference trace (second video)") {
+TEST_CASE("LDWMonitor replays the Python prototype trace (second video)") {
   replay_ldw("sp1_crop_4_30fps", {{484, "right"}, {4034, "left"}, {4438, "left"}});
 }
 

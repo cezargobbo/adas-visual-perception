@@ -1,6 +1,6 @@
 """Validate an exported SegFormer ONNX model against the reference Segmenter.
 
-Reference: Segmenter.__call__ from reference/python/dashcam_vision.py (fp16 PyTorch
+Reference: Segmenter.__call__ from prototype/python/dashcam_vision.py (fp16 PyTorch
 on GPU, as in the pipeline). Candidate (ONNX Runtime or TensorRT): the same
 preprocessing, logits from the backend at H/4, then the same bilinear upsample to
 the frame size and argmax in torch. Metric: % of pixels with the same class.
@@ -24,7 +24,7 @@ import frames as frames_mod  # noqa: E402
 from export_segformer import PROFILES, onnx_path  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "reference" / "python"))
+sys.path.insert(0, str(ROOT / "prototype" / "python"))
 MIN_AGREE = {"ort": 99.5, "trt": 99.0}
 MEAN = (0.485, 0.456, 0.406)
 STD = (0.229, 0.224, 0.225)

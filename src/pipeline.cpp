@@ -42,7 +42,7 @@ struct AdasState {
   std::unique_ptr<RLRMonitor> rlr;
   bool lane_corridor = false;
 
-  // Same enabling rules as the reference CLI: FCW and RLR need the detector, LDW needs the lanes.
+  // Same enabling rules as the Python prototype CLI: FCW and RLR need the detector, LDW needs the lanes.
   AdasState(const Config& c, int W, int H, bool has_det, bool has_lanes) {
     const double fps = c.frame_rate;
     if (has_lanes) {
@@ -168,14 +168,14 @@ FrameResult Pipeline::process(const cv::Mat& bgr, double t_seconds) {
     r.ego_lane = ad.ego->snapshot();
   }
 
-  // ADAS: lead vehicle, then FCW, LDW, RLR (order of the reference loop)
+  // ADAS: lead vehicle, then FCW, LDW, RLR (order of the Python prototype loop)
   if (ad.lead) {
     std::vector<Object> tracked;
     for (const Object& o : r.objects)
       if (o.track_id >= 0) tracked.push_back(o);
     r.lead = ad.lead->update(tracked, ad.lane_corridor ? ad.ego.get() : nullptr);
   }
-  // log_event of the reference: FCW and LDW rows carry the lead vehicle, RLR rows do not
+  // log_event of the Python prototype: FCW and LDW rows carry the lead vehicle, RLR rows do not
   auto add_alert = [&](const char* type, const std::string& side, bool with_lead = true) -> Alert& {
     Alert& a = r.alerts.emplace_back();
     a.type = type;

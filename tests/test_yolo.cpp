@@ -97,14 +97,14 @@ TEST_CASE("decode_yolo matches Ultralytics scale_boxes on 854x474") {
   }
 }
 
-TEST_CASE("YoloDetector matches reference dump") {
+TEST_CASE("YoloDetector matches Python prototype dump") {
   const char* vdir = std::getenv("ADASVP_VIDEOS_DIR");
   if (!vdir) SKIP("ADASVP_VIDEOS_DIR not set");
   const fs::path video = fs::path(vdir) / "sp1_crop_30fps.mp4";
   const fs::path dump = fs::path(ADASVP_SOURCE_DIR) / "outputs/dumps/fast/sp1_crop_30fps/frames.jsonl";
   const fs::path onnx = fs::path(ADASVP_SOURCE_DIR) / "models/yolo26s.onnx";
   if (!fs::exists(video)) SKIP("video not found");
-  if (!fs::exists(dump)) SKIP("reference dump not found");
+  if (!fs::exists(dump)) SKIP("Python prototype dump not found");
   if (!fs::exists(onnx)) SKIP("yolo26s ONNX not found");
 
   const fs::path cache = fs::temp_directory_path() / "adasvp_test_engine_cache_yolo";

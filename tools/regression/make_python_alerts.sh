@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Regenerate the Python reference alerts (detection only, --no-seg) for every
-# video listed in videos.txt and copy the CSVs into tests/regression/reference/.
+# video listed in videos.txt and copy the CSVs into tests/regression/python/.
 set -euo pipefail
 
 usage() {
   cat <<USAGE
-Usage: make_reference.sh --videos-dir DIR --profile fast|accurate [--out outputs/reference]
+Usage: make_python_alerts.sh --videos-dir DIR --profile fast|accurate [--out outputs/reference]
 
   --videos-dir DIR   directory containing the videos listed in videos.txt
   --profile NAME     fast or accurate
@@ -13,7 +13,7 @@ Usage: make_reference.sh --videos-dir DIR --profile fast|accurate [--out outputs
   -h, --help         show this help
 
 Writes <stem>_* outputs to DIR/<profile>/, copies the <stem>_alerts.csv files to
-tests/regression/reference/<profile>/ and writes summary.txt there (one line per
+tests/regression/python/<profile>/ and writes summary.txt there (one line per
 video: wall time and FCW/LDW/RLR event counts).
 USAGE
 }
@@ -36,7 +36,7 @@ repo="$(cd "$here/../.." && pwd)"
 cd "$repo"
 py=".venv/bin/python"
 dest="$out/$profile"
-ref="tests/regression/reference/$profile"
+ref="tests/regression/python/$profile"
 mkdir -p "$dest" "$ref"
 summary="$ref/summary.txt"
 : > "$summary"
@@ -45,7 +45,7 @@ while IFS= read -r rel; do
   [[ -z "$rel" || "$rel" == \#* ]] && continue
   stem="$(basename "$rel" .mp4)"
   t0=$(date +%s.%N)
-  "$py" reference/python/dashcam_vision.py "$videos_dir/$rel" -o "$dest/$stem" \
+  "$py" prototype/python/dashcam_vision.py "$videos_dir/$rel" -o "$dest/$stem" \
       --profile "$profile" --no-seg > "$dest/$stem.log" 2>&1
   t1=$(date +%s.%N)
   csv="$dest/${stem}_alerts.csv"

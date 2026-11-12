@@ -1,6 +1,6 @@
 #pragma once
 // Command line of the video_demo example: same flags, defaults and help layout as the main() of the Python
-// reference (dashcam_vision.py). Parsing and the output plan are free of GPU and display dependencies so they
+// Python prototype (dashcam_vision.py). Parsing and the output plan are free of GPU and display dependencies so they
 // can be unit-tested.
 #include <iosfwd>
 #include <optional>
@@ -55,7 +55,7 @@ struct Options {
   std::optional<std::string> det_precision;  // fp16 | fp32
   std::optional<std::string> models_dir;
 
-  // Derived by parse_args (the couplings of the reference): what actually runs.
+  // Derived by parse_args (the couplings of the Python prototype): what actually runs.
   bool lanes = true, fcw = true, ldw = true, rlr = true;
 };
 
@@ -84,7 +84,7 @@ struct OutputPlan {
 // deviation from the Python flag); the CSV also needs at least one alert monitor.
 OutputPlan plan_outputs(const Options& o);
 
-// Frames processed for --start / --duration (main() of the reference): int() truncation, clamped to the video
+// Frames processed for --start / --duration (main() of the Python prototype): int() truncation, clamped to the video
 // length. n_frames is <= 0 when the start is at or beyond the end.
 struct Segment {
   int start_f = 0, end_f = 0, n_frames = 0;

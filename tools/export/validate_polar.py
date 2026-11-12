@@ -29,7 +29,7 @@ import frames as frames_mod  # noqa: E402
 from export_polar import onnx_path  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "reference" / "python"))
+sys.path.insert(0, str(ROOT / "prototype" / "python"))
 import lanes_polar as lp  # noqa: E402
 
 MIN_COUNT_MATCH = 98.0   # % of frames with the same lane count

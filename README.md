@@ -248,7 +248,7 @@ later runs start quickly.
 | `tools/cpp/` | `adasvp_dump`, which writes per-frame dumps for the regression |
 | `tools/export/` | Python tools that export the models to ONNX and validate them |
 | `tools/regression/` | Reference dumps, comparison and fps tools |
-| `reference/python/` | The Python reference pipeline the C++ is a port of |
+| `prototype/python/` | The Python reference pipeline the C++ is a port of |
 | `tests/` | C++ tests (Catch2), Python tool tests, fixtures and the reference alert CSVs |
 | `scripts/` | Model and video download, Docker wrapper, release staging, GIF maker |
 | `docs/` | [algorithm.md](docs/algorithm.md), [install.md](docs/install.md), [regression.md](docs/regression.md), media |

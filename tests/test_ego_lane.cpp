@@ -48,7 +48,7 @@ LaneState state_of(const std::string& s) {
 void replay(const std::string& stem) {
   const fs::path dir = fs::path(ADASVP_SOURCE_DIR) / "outputs/dumps/fast" / stem;
   if (!fs::exists(dir / "adas.jsonl") || !fs::exists(dir / "meta.json")) {
-    SKIP("reference trace missing: " << (dir / "adas.jsonl").string());
+    SKIP("Python prototype trace missing: " << (dir / "adas.jsonl").string());
   }
   json meta;
   {
@@ -60,7 +60,7 @@ void replay(const std::string& stem) {
   EgoLaneTracker trk(meta["width"].get<int>(), meta["height"].get<int>(), ad["fps_used"].get<double>(),
                      df["cam_height"].get<double>(), df["horizon"].get<double>(), df["lanes_hold"].get<double>());
 
-  // Geometry recorded by the reference.
+  // Geometry recorded by the Python prototype.
   CHECK(vdiff(trk.rows_y(), vec(ad["ego_ys"])) <= 1e-9);
   CHECK(vdiff(trk.t_row(), vec(ad["ego_t_row"])) <= 1e-12);
   CHECK(std::fabs(trk.wmin() - ad["ego_wmin"].get<double>()) <= 1e-9);
@@ -118,8 +118,8 @@ void replay(const std::string& stem) {
 
 }  // namespace
 
-TEST_CASE("EgoLaneTracker replays the reference trace") { replay("sp1_crop_30fps"); }
-TEST_CASE("EgoLaneTracker replays the reference trace (second video)") { replay("sp1_crop_4_30fps"); }
+TEST_CASE("EgoLaneTracker replays the Python prototype trace") { replay("sp1_crop_30fps"); }
+TEST_CASE("EgoLaneTracker replays the Python prototype trace (second video)") { replay("sp1_crop_4_30fps"); }
 
 TEST_CASE("lane_x_at rejects short or high lanes") {
   std::vector<cv::Point2f> few{{100, 900}, {100, 950}, {100, 1000}};

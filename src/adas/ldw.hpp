@@ -1,6 +1,6 @@
 #pragma once
 // Lane Departure Warning with the "robustness first" arming logic. Line-by-line port of LDWMonitor of the
-// reference (dashcam_vision.py). Internal math is double.
+// Python prototype (dashcam_vision.py). Internal math is double.
 
 #include <deque>
 #include <limits>

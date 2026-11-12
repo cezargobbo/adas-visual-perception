@@ -148,7 +148,7 @@ TEST_CASE("letterbox matches Ultralytics") {
   }
 }
 
-TEST_CASE("polar preprocess matches reference") {
+TEST_CASE("polar preprocess matches the Python prototype") {
   for (auto [w, h] : {std::pair{1920, 1080}, {854, 474}, {1281, 721}}) {
     const std::string name = kFix + "polarpre_" + std::to_string(w) + "x" + std::to_string(h);
     INFO(name);
@@ -167,7 +167,7 @@ TEST_CASE("polar preprocess matches reference") {
   }
 }
 
-TEST_CASE("segformer preprocess matches reference") {
+TEST_CASE("segformer preprocess matches the Python prototype") {
   SECTION("tiny cases (full tensors)") {
     for (int k = 0; k < 2; ++k) {
       const std::string name = kFix + "segpre_tiny" + std::to_string(k);

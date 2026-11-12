@@ -1,6 +1,6 @@
 #pragma once
 // Forward Collision Warning from the scale expansion of the lead-vehicle box (calibration-free TTC).
-// Line-by-line port of FCWMonitor of the reference (dashcam_vision.py). Internal math is double.
+// Line-by-line port of FCWMonitor of the Python prototype (dashcam_vision.py). Internal math is double.
 
 #include <deque>
 #include <optional>

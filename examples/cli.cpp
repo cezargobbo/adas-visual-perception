@@ -314,7 +314,7 @@ std::optional<Options> parse_args(int argc, const char* const* argv, std::ostrea
   app.add_option("--corridor-bottom", o.corridor_bottom);
   app.add_option("--corridor-top", o.corridor_top);
 
-  app.add_flag("--lanes", old_lanes);  // old opt-in of the reference, now the default (hidden, no-op)
+  app.add_flag("--lanes", old_lanes);  // old opt-in of the Python prototype, now the default (hidden, no-op)
   app.add_option("--lanes-thr", o.lanes_thr);
   app.add_option("--lanes-hold", o.lanes_hold);
   app.add_flag("--no-lane-corridor", o.no_lane_corridor);

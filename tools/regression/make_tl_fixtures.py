@@ -2,7 +2,7 @@
 """Extract traffic-light crops + the reference traffic_light_state() as test fixtures.
 
 For the published test videos (sp1_crop*_30fps, red_crop_{11,12,13}_30fps) the class-9 detections
-come from the reference dumps (frames.jsonl written by dump_reference.py). Each selected box is cut
+come from the reference dumps (frames.jsonl written by dump_python.py). Each selected box is cut
 out of the frame exactly as traffic_light_state() does (rounded, clipped to the image, no extra
 padding; the function's own 15% side margin is applied inside it) and saved as a PNG. The expected
 state is the Python traffic_light_state() result for that box on the full frame; the script checks
@@ -27,7 +27,7 @@ import cv2
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "reference" / "python"))
+sys.path.insert(0, str(ROOT / "prototype" / "python"))
 
 VIDEOS = ["sp1_crop_30fps", "sp1_crop_2_30fps", "sp1_crop_3_30fps", "sp1_crop_4_30fps",
           "red_crop_11_30fps", "red_crop_12_30fps", "red_crop_13_30fps"]

@@ -1,7 +1,7 @@
 #pragma once
 // Traffic-light lamp colour and a small dedicated tracker for traffic lights.
-// Line-by-line ports of traffic_light_state and TrafficLightTracker of the reference (dashcam_vision.py).
-// Internal math is double (the colour features are float32 like the reference).
+// Line-by-line ports of traffic_light_state and TrafficLightTracker of the Python prototype (dashcam_vision.py).
+// Internal math is double (the colour features are float32 like the Python prototype).
 
 #include <array>
 #include <map>

@@ -2,7 +2,7 @@
 """Dump per-frame intermediate results of the Python reference pipeline.
 
 The dump is the ground truth the C++ tests compare against. It imports
-reference/python/dashcam_vision.py (never modified) and runs the models exactly as
+prototype/python/dashcam_vision.py (never modified) and runs the models exactly as
 the main loop does: same Ultralytics ``track()`` call, same ``Segmenter``, same
 ``PolarLaneDetector``, same ``--seg-every`` reuse rule (segmentation runs on frames
 with ``i % seg_every == 0``, ``i`` relative to --start).
@@ -39,7 +39,7 @@ import cv2
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "reference" / "python"))
+sys.path.insert(0, str(ROOT / "prototype" / "python"))
 
 # Defaults of the reference argparse (dashcam_vision.py main()).
 ADAS_DEFAULTS = dict(hfov=75.0, cam_height=1.5, horizon=0.59, corridor_bottom=0.12, corridor_top=0.02,

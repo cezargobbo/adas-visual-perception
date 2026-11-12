@@ -1,6 +1,6 @@
 #pragma once
 // Red-light running: the car drives under / past a RED traffic light that belongs to its path.
-// Line-by-line port of RLRMonitor of the reference (dashcam_vision.py). Internal math is double.
+// Line-by-line port of RLRMonitor of the Python prototype (dashcam_vision.py). Internal math is double.
 
 #include <optional>
 #include <tuple>

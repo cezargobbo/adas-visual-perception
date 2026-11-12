@@ -1,7 +1,7 @@
 #pragma once
 // Preprocessing of camera frames into model input tensors on the GPU.
-// Spec: tools/export/preproc.py::letterbox (YOLO), reference/python/lanes_polar.py (Polar R-CNN),
-// reference/python/dashcam_vision.py::Segmenter (SegFormer).
+// Spec: tools/export/preproc.py::letterbox (YOLO), prototype/python/lanes_polar.py (Polar R-CNN),
+// prototype/python/dashcam_vision.py::Segmenter (SegFormer).
 #include <cuda_runtime_api.h>
 
 #include <opencv2/core.hpp>

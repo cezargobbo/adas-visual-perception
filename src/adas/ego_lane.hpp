@@ -1,6 +1,6 @@
 #pragma once
 // Ego-lane selection and temporal tracking. Line-by-line port of EgoLaneTracker / lane_x_at of the
-// reference (dashcam_vision.py). Internal math is double.
+// Python prototype (dashcam_vision.py). Internal math is double.
 
 #include <array>
 #include <optional>

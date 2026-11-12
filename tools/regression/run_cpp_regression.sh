@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs the C++ video_demo (--no-seg) on every video of videos.txt and compares the alert CSVs with the
-# Python reference in tests/regression/reference/<profile>/ (strict, see compare_alerts.py).
+# Python reference in tests/regression/python/<profile>/ (strict, see compare_alerts.py).
 set -uo pipefail
 
 usage() {
@@ -45,7 +45,7 @@ repo="$(cd "$here/../.." && pwd)"
 cd "$repo"
 py=".venv/bin/python"
 [[ -x "$py" ]] || py="python3"  # compare_alerts.py is stdlib-only
-ref="tests/regression/reference/$profile"
+ref="tests/regression/python/$profile"
 dest="$out/$profile${prec:+_$prec}"
 mkdir -p "$dest"
 extra=(); [[ -n "$prec" ]] && extra=(--det-precision "$prec")

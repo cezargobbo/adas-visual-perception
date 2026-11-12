@@ -46,7 +46,7 @@ Box box_of(const json& b) {
 
 }  // namespace
 
-TEST_CASE("traffic_light_state matches reference crops") {
+TEST_CASE("traffic_light_state matches Python prototype crops") {
   const fs::path dir = fs::path(ADASVP_SOURCE_DIR) / "tests/fixtures";
   std::ifstream f(dir / "tl_state_expected.json");
   REQUIRE(f.good());
@@ -100,7 +100,7 @@ namespace {
 
 void replay_rlr(const std::string& stem, const std::vector<long>& expected_frames, double expected_red_for) {
   const fs::path dir = fs::path(ADASVP_SOURCE_DIR) / "outputs/dumps/fast" / stem;
-  if (!fs::exists(dir / "adas.jsonl") || !fs::exists(dir / "meta.json")) SKIP("reference trace missing: " << stem);
+  if (!fs::exists(dir / "adas.jsonl") || !fs::exists(dir / "meta.json")) SKIP("Python prototype trace missing: " << stem);
   std::ifstream m(dir / "meta.json");
   const json meta = json::parse(m);
   std::ifstream f(dir / "adas.jsonl");
@@ -140,7 +140,7 @@ void replay_rlr(const std::string& stem, const std::vector<long>& expected_frame
       red_fors.push_back(e.red_for);
     }
 
-    // tracks (the dump keeps only the last history entry and n_hist, hist is capped like the reference)
+    // tracks (the dump keeps only the last history entry and n_hist, hist is capped like the Python prototype)
     const auto& tracks = mon.tracker().tracks();
     const json& wt = j["tl_tracks"];
     if (tracks.size() != wt.size()) {
@@ -181,7 +181,7 @@ void replay_rlr(const std::string& stem, const std::vector<long>& expected_frame
 
 }  // namespace
 
-TEST_CASE("RLRMonitor replays the reference trace") {
+TEST_CASE("RLRMonitor replays the Python prototype trace") {
   SECTION("red_crop_11_30fps: one RLR") { replay_rlr("red_crop_11_30fps", {466}, 3.3667); }
   SECTION("sp1_crop_30fps: no RLR") { replay_rlr("sp1_crop_30fps", {}, 0); }
 }

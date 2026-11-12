@@ -1,5 +1,5 @@
 #pragma once
-// Robust slope dy/dt (median of pairwise slopes). Port of theil_sen of the reference (dashcam_vision.py).
+// Robust slope dy/dt (median of pairwise slopes). Port of theil_sen of the Python prototype (dashcam_vision.py).
 
 #include <algorithm>
 #include <vector>
