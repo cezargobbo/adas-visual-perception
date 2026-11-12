@@ -6,18 +6,28 @@ segmentation layer is drawn on top. The library is `adasvp`; `video_demo` is the
 annotates a video and writes the alert events to a CSV. It is a port of a Python reference pipeline, checked
 against it event by event.
 
-<p align="center">
-  <img src="docs/media/fcw_sp1_crop_30fps.gif" width="50%" alt="Forward collision warning on sp1_crop_30fps">
-  <img src="docs/media/fcw_sp1_crop_2_30fps.gif" width="50%" alt="Forward collision warning on sp1_crop_2_30fps">
-  <br>
-  <sub>FCW: sp1_crop_30fps, 30.63 s &nbsp;|&nbsp; FCW: sp1_crop_2_30fps, 18.39 s</sub>
-</p>
-<p align="center">
-  <img src="docs/media/ldw_sp1_crop_4_30fps.gif" width="50%" alt="Lane departure warning on sp1_crop_4_30fps">
-  <img src="docs/media/rlr_red_crop_11_30fps.gif" width="50%" alt="Red-light running on red_crop_11_30fps">
-  <br>
-  <sub>LDW (left): sp1_crop_4_30fps, 148.08 s &nbsp;|&nbsp; RLR: red_crop_11_30fps, 15.53 s</sub>
-</p>
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/media/fcw_sp1_crop_30fps.gif" width="100%" alt="Forward collision warning on sp1_crop_30fps"><br>
+      <sub>FCW: sp1_crop_30fps, 30.63 s</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/media/fcw_sp1_crop_2_30fps.gif" width="100%" alt="Forward collision warning on sp1_crop_2_30fps"><br>
+      <sub>FCW: sp1_crop_2_30fps, 18.39 s</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/media/ldw_sp1_crop_4_30fps.gif" width="100%" alt="Lane departure warning on sp1_crop_4_30fps"><br>
+      <sub>LDW (left): sp1_crop_4_30fps, 148.08 s</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/media/rlr_red_crop_11_30fps.gif" width="100%" alt="Red-light running on red_crop_11_30fps"><br>
+      <sub>RLR: red_crop_11_30fps, 15.53 s</sub>
+    </td>
+  </tr>
+</table>
 
 Each GIF shows 10 s centred on the event (accurate profile, detections view, from the C++ output). The `red_crop_*`
 clips carry a watermark of the channel they come from; see [License](#license).
