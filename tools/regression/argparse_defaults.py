@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Extracts the argparse defaults of prototype/python/dashcam_vision.py into tests/fixtures/argparse_defaults.json.
 
-The reference builds its parser inside main(), so it cannot be imported on its own. This script imports the
+The Python prototype builds its parser inside main(), so it cannot be imported on its own. This script imports the
 module (main() does not run), swaps argparse.ArgumentParser.parse_args for a hook that captures the parser and
 aborts, and calls main(): the parser is fully built by the time parse_args is reached. The defaults are then read
 from the parser actions (dest -> default), the "--profile" defaults are resolved from PROFILES, and the result is

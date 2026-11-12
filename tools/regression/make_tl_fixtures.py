@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Extract traffic-light crops + the reference traffic_light_state() as test fixtures.
+"""Extract traffic-light crops + the Python prototype's traffic_light_state() as test fixtures.
 
 For the published test videos (sp1_crop*_30fps, red_crop_{11,12,13}_30fps) the class-9 detections
-come from the reference dumps (frames.jsonl written by dump_python.py). Each selected box is cut
+come from the Python prototype dumps (frames.jsonl written by dump_python.py). Each selected box is cut
 out of the frame exactly as traffic_light_state() does (rounded, clipped to the image, no extra
 padding; the function's own 15% side margin is applied inside it) and saved as a PNG. The expected
 state is the Python traffic_light_state() result for that box on the full frame; the script checks

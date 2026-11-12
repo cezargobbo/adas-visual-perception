@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dump per-frame intermediate results of the Python reference pipeline.
+"""Dump per-frame intermediate results of the Python prototype pipeline.
 
 The dump is the ground truth the C++ tests compare against. It imports
 prototype/python/dashcam_vision.py (never modified) and runs the models exactly as
@@ -16,14 +16,14 @@ Output layout (DIR):
                  dets   = exactly what entered BYTETracker.update (captured by wrapping
                           that method: post-NMS, conf >= --conf, class filter, original
                           frame pixel coordinates).
-                 tracks = what the reference loop sees afterwards: result.boxes rows that
+                 tracks = what the prototype loop sees afterwards: result.boxes rows that
                           carry a track id (Kalman-smoothed xyxy, id, score, cls).
                  lanes  = frame-pixel polylines (top -> bottom) from PolarLaneDetector.
   seg/NNNNNN.png uint8 class-id map (frame resolution), every --seg-every frames.
   adas.jsonl     only with --adas: one line per frame with the inputs and outputs of the ADAS
                  classes (EgoLaneTracker, LeadVehicleEstimator, FCWMonitor, LDWMonitor,
-                 TrafficLightTracker, RLRMonitor), driven exactly like the reference main loop with
-                 the reference defaults. Schema: tools/regression/README.md.
+                 TrafficLightTracker, RLRMonitor), driven exactly like the prototype main loop with
+                 the prototype defaults. Schema: tools/regression/README.md.
   meta.json      video, profile, resolution, fps, parameters, library versions (plus an "adas"
                  object with the frame windows derived from fps when --adas is given).
 """
@@ -41,7 +41,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "prototype" / "python"))
 
-# Defaults of the reference argparse (dashcam_vision.py main()).
+# Defaults of the prototype argparse (dashcam_vision.py main()).
 ADAS_DEFAULTS = dict(hfov=75.0, cam_height=1.5, horizon=0.59, corridor_bottom=0.12, corridor_top=0.02,
                      lanes_hold=2.5, fcw_ttc=2.7, fcw_ttc_critical=1.5, ldw_margin=0.25,
                      ldw_car_width=1.8, rlr_zone=(0.25, 0.75))
@@ -196,7 +196,7 @@ def main() -> None:
                     tracks.append([float(r[0]), float(r[1]), float(r[2]), float(r[3]),
                                    int(r[4]), float(r[5]), int(r[6])])
             if args.adas:
-                # Same glue as the reference main loop (dashcam_vision.py, "ADAS alerts" block).
+                # Same glue as the prototype main loop (dashcam_vision.py, "ADAS alerts" block).
                 t_s = (start_f + i) / fps
                 lane_trk.update(lane_list)
                 ego = ego_state(lane_trk)

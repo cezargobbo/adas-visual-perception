@@ -3,8 +3,15 @@
 ADAS perception for dashcam video in C++ and TensorRT: detection and tracking, lane detection, lead-vehicle
 distance, forward collision warning (FCW), lane departure warning (LDW) and red-light running (RLR). A semantic
 segmentation layer is drawn on top. The library is `adasvp`; `video_demo` is the command-line program that
-annotates a video and writes the alert events to a CSV. It is a port of a Python reference pipeline, checked
-against it event by event.
+annotates a video and writes the alert events to a CSV.
+
+## Origin
+
+The project started as a Python prototype (now in [prototype/python/](prototype/python/)), which the
+author tuned by watching the annotated output videos. It was then ported line by line to C++ and TensorRT, and the
+port was checked against the prototype event by event (see [Measured behaviour](#measured-behaviour)). The C++ is
+the maintained implementation and the source of truth: `tests/regression/golden/` holds its alert baseline. The
+Python prototype is kept for history and for an optional parity check, and is not maintained.
 
 <table>
   <tr>
@@ -77,10 +84,11 @@ thresholds.
 
 ## Measured behaviour
 
-Event-level comparison of `video_demo` against the Python reference on the 17 test videos (alert events matched by
-type and level or side, within 0.5 s, the tolerance never loosened):
+When the port was made, `video_demo` was compared with the Python prototype on the 17 test videos (alert events
+matched by type and level or side, within 0.5 s, the tolerance never loosened). The port preserved the behaviour
+the author had validated on the prototype's output videos:
 
-- accurate profile: 17 of 17 videos identical to the reference;
+- accurate profile: 17 of 17 videos identical to the Python prototype;
 - fast profile: 16 of 17 identical, plus 1 borderline case: an FCW warning on `sp1_crop_30fps` at 127.96 s that
   the C++ did not fire. The minimum time to collision around it is 2.664 s in Python and 2.659 s in C++, against
   the 2.7 s threshold. Different inference engines (PyTorch and TensorRT) cannot be made equal at a threshold
@@ -88,7 +96,7 @@ type and level or side, within 0.5 s, the tolerance never loosened):
 
 The seven videos of the release, in events (FCW + LDW + RLR):
 
-| Video | Accurate: reference / C++ | Accurate result | Fast: reference / C++ | Fast result |
+| Video | Accurate: Python / C++ | Accurate result | Fast: Python / C++ | Fast result |
 |---|---|---|---|---|
 | `sp1_crop_30fps` | 5 / 5 | identical | 4 / 3 | 3 identical, 1 borderline |
 | `sp1_crop_2_30fps` | 1 / 1 | identical | 1 / 1 | identical |
@@ -101,14 +109,16 @@ The seven videos of the release, in events (FCW + LDW + RLR):
 Speed, in frames per second averaged over the 17 videos weighted by frames, with `--dry --no-seg` (decode, lanes,
 detection, tracking and ADAS, no encoding), on an RTX 4070 Laptop GPU:
 
-| Profile | C++ | Python reference |
+| Profile | C++ | Python prototype |
 |---|---|---|
 | fast | 129.2 | 20.1 |
 | accurate (fp16 detector, the default) | 48.6 | 12.7 |
 | accurate (fp32 detector, `--det-precision fp32`) | 20.3 | not measured |
 
-The Python numbers include model loading and are noisy (shared GPU). The tables, the procedure and the tools
-are in [docs/regression.md](docs/regression.md) and [tools/regression/README.md](tools/regression/README.md).
+The Python numbers include model loading and are noisy (shared GPU). Going forward, the regression baseline is
+the C++ output itself (`tests/regression/golden/`): `tools/regression/run_cpp_regression.sh` compares a run with it
+and expects every pair identical. The tables, the procedure and the tools are in
+[docs/regression.md](docs/regression.md) and [tools/regression/README.md](tools/regression/README.md).
 
 ## Requirements
 
@@ -213,7 +223,7 @@ later runs start quickly.
 | `--show [{det,seg,comb}]` | off (`det` if given without a value) | Open a live window instead of writing files; nothing is written, not even the CSV. Needs a display. Keys: `q` / ESC quit, SPACE pause. |
 | `--show-width PX` | `1280` | Width of the `--show` window. |
 | `--seg-model ONNX` | profile default | Segmentation ONNX file: a path, or a name looked up in `--models-dir`. |
-| `--seg-size WxH` | ignored | Accepted for compatibility with the Python reference, ignored: the resolution is fixed by the ONNX file. |
+| `--seg-size WxH` | ignored | Accepted for compatibility with the Python prototype, ignored: the resolution is fixed by the ONNX file. |
 | `--seg-every N` | `1` | Run segmentation every N frames and repeat the last mask in between. |
 | `--seg-alpha A` | `0.45` | Opacity of the segmentation colours, 0 to 1. |
 | `--no-legend` | off | Do not draw the segmentation class legend. |
@@ -247,9 +257,9 @@ later runs start quickly.
 | `examples/` | `video_demo`: command line, ffmpeg writer, alerts CSV |
 | `tools/cpp/` | `adasvp_dump`, which writes per-frame dumps for the regression |
 | `tools/export/` | Python tools that export the models to ONNX and validate them |
-| `tools/regression/` | Reference dumps, comparison and fps tools |
-| `prototype/python/` | The Python reference pipeline the C++ is a port of |
-| `tests/` | C++ tests (Catch2), Python tool tests, fixtures and the reference alert CSVs |
+| `tools/regression/` | Dump, comparison and regression tools (C++ golden check, Python parity) |
+| `prototype/python/` | The original Python prototype the C++ was ported from (history and optional parity check, not maintained) |
+| `tests/` | C++ tests (Catch2), Python tool tests, fixtures, the C++ golden alert CSVs (`tests/regression/golden/`) and the Python prototype's alert CSVs (`tests/regression/python/`) |
 | `scripts/` | Model and video download, Docker wrapper, release staging, GIF maker |
 | `docs/` | [algorithm.md](docs/algorithm.md), [install.md](docs/install.md), [regression.md](docs/regression.md), media |
 | `models/` | Where the ONNX models go (not versioned); [models/README.md](models/README.md) |
@@ -269,9 +279,9 @@ later runs start quickly.
   frame interval is not supported.
 - There is no vehicle speed (no CAN or GPS), so LDW cannot be suppressed at low speed or when the turn signal is
   on. It is conservative by design and prefers silence to a false alarm.
-- A threshold crossing can differ between TensorRT and the PyTorch reference by float noise (the borderline FCW
+- A threshold crossing can differ between TensorRT and PyTorch (the Python prototype) by float noise (the borderline FCW
   above).
-- `video_demo` deliberately differs from the Python reference: `--seg-model` and `--det-model` take ONNX files
+- `video_demo` deliberately differs from the Python prototype: `--seg-model` and `--det-model` take ONNX files
   (a path or a name in `--models-dir`), `--tracker` is removed, `--seg-size` is accepted but ignored, a missing
   ffmpeg or a `--start` beyond the end of the video is an error with exit code 1, and `--dry` still writes the
   alerts CSV.

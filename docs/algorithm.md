@@ -6,9 +6,11 @@ alerts. This page describes each stage, with the thresholds exactly as they are 
 either a default of `adasvp::Config` (`include/adasvp/adasvp.hpp`, `src/config.cpp`) or a constant in the file named
 in the section.
 
-The C++ is a line-by-line port of the Python reference in `prototype/python/dashcam_vision.py`. The stages that
-follow keep the Python names (`EgoLaneTracker`, `LeadVehicleEstimator`, `FCWMonitor`, `LDWMonitor`, `RLRMonitor`)
-so the two can be read side by side; [regression.md](regression.md) describes how the equivalence is checked.
+The C++ is the maintained implementation. It was ported line by line from the original Python prototype in
+`prototype/python/dashcam_vision.py`, and the stages that follow keep the prototype's names (`EgoLaneTracker`,
+`LeadVehicleEstimator`, `FCWMonitor`, `LDWMonitor`, `RLRMonitor`), so the two can still be read side by side. Where
+this page and the prototype differ, the C++ is right. [regression.md](regression.md) describes how the port was
+checked and how the C++ is now guarded by its own golden baseline.
 
 ## The order of one frame
 
@@ -355,7 +357,7 @@ alert; it only displays them.
 Ego lane lines are solid when `Detected` (or `Partial` for the observed side) and dashed otherwise; the boundary
 being approached during an LDW alert is drawn orange. The lead vehicle is a red box labelled with class, distance and,
 under an FCW alert, TTC, with a yellow line to the bottom centre of the image. The segmentation blend reproduces the
-half-precision arithmetic of the Python overlay through a lookup table, so the output matches the Python drawing
+half-precision arithmetic of the Python prototype overlay through a lookup table, so the output matches the prototype drawing
 (the test `Renderer matches the Python drawing` requires at least 99.5% identical pixels).
 
 ## What comes out
@@ -377,7 +379,7 @@ half-precision arithmetic of the Python overlay through a lookup table, so the o
 | `ldw` | `LdwStatus`: `enabled`, `armed`, `side`, `event`, `d`, `v`, `tlc` |
 | `rlr` | `RlrStatus`: `event` (`id`, `cx`, `red_for`, `growth`, `box`) or empty |
 | `alerts` | `Alert` rows that are new in this frame |
-| `debug` | the values behind the Python `--adas-debug` trace (LDW disarm reason, `last_v`, last full-check metrics) |
+| `debug` | the values behind the `--adas-debug` trace (LDW disarm reason, `last_v`, last full-check metrics) |
 
 `Pipeline::stats()` returns event counters and the frames per LDW disarm reason.
 
@@ -406,9 +408,9 @@ The library itself writes `frame = -1` in `Alert`; the caller fills it.
   not trigger it. The colour is a heuristic on pixel statistics (threshold 14), not a learned classifier.
 - All windows assume a constant frame rate taken from `Config::frame_rate`. A variable frame interval is not
   supported.
-- Thresholds are applied to results of different inference engines than the reference (TensorRT instead of PyTorch),
-  and detections or lanes sitting exactly at a threshold can differ by float noise. In the regression this showed up
-  once: a borderline FCW (see [regression.md](regression.md)).
+- Thresholds are applied to results of different inference engines than the Python prototype (TensorRT instead of PyTorch),
+  and detections or lanes sitting exactly at a threshold can differ by float noise. In the parity check against the
+  prototype this showed up once: a borderline FCW (see [regression.md](regression.md)).
 - Segmentation is a display layer: no alert depends on it.
 - It needs an NVIDIA GPU with TensorRT. The first run builds the TensorRT engines, which can take minutes for the
   large models; they are cached afterwards.

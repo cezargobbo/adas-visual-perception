@@ -1,12 +1,12 @@
 #!/usr/bin/env python
-"""Compares two alert CSVs (Python reference vs C++ video_demo) event by event.
+"""Compares two alert CSVs (a baseline vs C++ video_demo) event by event.
 
-Usage: compare_alerts.py REF.csv CPP.csv [--tol 0.5]
+Usage: compare_alerts.py BASELINE.csv CPP.csv [--tol 0.5]
 
 Events are matched by (type, level_side) within +-tol seconds on time_s (greedy, closest pairs first, each
 event used once). Greedy matching can only err on the strict side: it may leave a false missing/extra pair when
 events are closer together than the tolerance, but it never pairs events that are farther apart than the tolerance
-or of a different kind, so it cannot hide a real mismatch. Prints the pairs, the missing events (in REF only) and the extra events (in CPP only), and
+or of a different kind, so it cannot hide a real mismatch. Prints the pairs, the missing events (in the baseline only) and the extra events (in CPP only), and
 exits 0 only when nothing is missing or extra. The tolerance is never loosened: borderline FCW cases are
 diagnosed separately (see README.md).
 """
@@ -49,8 +49,8 @@ def fmt(e):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("ref")
-    ap.add_argument("cpp")
+    ap.add_argument("ref", metavar="BASELINE.csv", help="golden or Python prototype alerts CSV")
+    ap.add_argument("cpp", metavar="CPP.csv")
     ap.add_argument("--tol", type=float, default=0.5)
     a = ap.parse_args(argv)
     ref, cpp = load(a.ref), load(a.cpp)

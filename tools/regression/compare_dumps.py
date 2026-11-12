@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare a C++ dump (adasvp_dump) against a Python reference dump (dump_python.py).
+"""Compare a C++ dump (adasvp_dump) against a Python prototype dump (dump_python.py).
 
 Usage: compare_dumps.py REF_DIR CPP_DIR [--adas]
 
@@ -10,14 +10,14 @@ Gates (per video; exit code 0 only if all pass):
   lanes  same lane count on >= 98% of frames, mean |dx| <= 2 px (over true pairs). Matched pairs with
          mean |dx| > 20 px are greedy cross-lane mismatches: reported separately, excluded from the
          point-count gate. Point count over the true pairs: >= 99.9% with diff <= 1 and max diff <= 2.
-  seg    >= 99% equal pixels in every PNG; the reference must contain at least one PNG
+  seg    >= 99% equal pixels in every PNG; the Python dump must contain at least one PNG
 With --adas (both dirs hold adas.jsonl, written by dump_python.py --adas / adasvp_dump --adas) the alert
 events are also compared. Gate: every event (type + side/level: FCW warning|critical, LDW left|right, RLR red)
 of one dump has a partner of the other within +-0.5 s (one-to-one, greedy by time difference). Diagnostics, not
 gates: ego.state equal on >= 97% of the frames; lead id equal (under the majority C++ -> Python id mapping,
 "no lead" in both counts as equal) on >= 95% of the frames.
-Gates never pass on an empty comparison: a reference with lanes but no matched lane pair fails the lane
-gate, a reference without seg PNGs fails the seg gate, and more than MAX_MISMATCHED (5) cross-lane
+Gates never pass on an empty comparison: a Python dump with lanes but no matched lane pair fails the lane
+gate, a Python dump without seg PNGs fails the seg gate, and more than MAX_MISMATCHED (5) cross-lane
 mismatched pairs per video fail the lane gate.
 """
 from __future__ import annotations
@@ -146,11 +146,11 @@ def compare(ref_dir: Path, cpp_dir: Path) -> dict:
 
 EVENT_TOL_S = 0.5
 BORDERLINE_FACTOR = 1.02
-DEFAULT_FCW_TTC = {"warning": 2.7, "critical": 1.5}  # fcw_ttc, fcw_ttc_critical of the reference defaults
+DEFAULT_FCW_TTC = {"warning": 2.7, "critical": 1.5}  # fcw_ttc, fcw_ttc_critical of the Python prototype defaults
 
 
 def fcw_thresholds(ref_dir: Path) -> dict:
-    """Thresholds from the reference dump meta (adas.defaults), else the reference defaults."""
+    """Thresholds from the Python dump meta (adas.defaults), else the Python prototype defaults."""
     try:
         d = json.load(open(ref_dir / "meta.json"))["adas"]["defaults"]
         return {"warning": float(d["fcw_ttc"]), "critical": float(d["fcw_ttc_critical"])}
@@ -233,7 +233,7 @@ def compare_adas(ref_dir: Path, cpp_dir: Path) -> dict:
         agree += (a is None and b is None) or (a is not None and b is not None and maj.get(int(b[0])) == int(a[0]))
     res["lead_agree"] = agree / max(n, 1)
     thr = fcw_thresholds(ref_dir)
-    # a missing event is an event of the reference that C++ did not fire (C++ is "the other"), and vice versa
+    # a missing event is an event of the Python dump that C++ did not fire (C++ is "the other"), and vice versa
     res["missing_border"], miss_fail = classify_unmatched(res["missing"], cpp, thr)
     res["extra_border"], extra_fail = classify_unmatched(res["extra"], ref, thr)
     res["missing_border"] = [(e, m, min_ttc_near(ref, e[2])) for e, m in res["missing_border"]]

@@ -1,4 +1,9 @@
-# Reference alerts: notes
+# Python prototype alerts: notes
+
+These are the alerts of the original Python prototype (`prototype/python/`), kept as the parity record of the port:
+the C++ `video_demo` was compared with them event by event (`tools/regression/run_cpp_regression.sh --against
+python`). They are not the regression baseline of the C++, which is `tests/regression/golden/`, and they are not
+regenerated unless the parity check is repeated on purpose.
 
 `fast/` and `accurate/` hold the alerts CSVs (`<video>_alerts.csv`) and a `summary.txt`
 (one line per video: wall time and FCW/LDW/RLR event counts) written by
@@ -12,9 +17,9 @@ Checked on one video only (`red_crop_2_30fps`, fast profile, `--no-seg`): two ru
 different output prefixes gave byte-identical alerts CSVs. Other videos and the accurate
 profile were not re-run for this check.
 
-## Differences vs. earlier runs of the same reference script
+## Differences vs. earlier runs of the same script
 
-Compared with CSVs from earlier runs of the same reference script (before the
+Compared with CSVs from earlier runs of the same script (before the
 `red_for_s` column and RLR events were added):
 
 - Fast profile, `sp1_*` videos (FCW/LDW): event times, frames, types, levels and TTC

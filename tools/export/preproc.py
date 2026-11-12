@@ -1,4 +1,4 @@
-"""Reference YOLO preprocessing (letterbox).
+"""YOLO preprocessing (letterbox) in Python: the specification of the C++ one.
 
 This is the specification the C++ preprocessing must copy. It is bit-exact
 with Ultralytics 8.4.208 ``predictor.preprocess`` for a ``.pt`` model fed one

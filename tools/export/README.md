@@ -20,7 +20,7 @@ Engine cache files are keyed by ONNX hash, precision, TensorRT version, profile 
 `--precision fp16|fp32` selects the TensorRT engine precision. YOLO uses a dynamic profile
 min 1x3x320x320, opt 1x3x544x960 (s) / 1x3x736x1280 (x), max 1x3x1280x1280.
 
-## Validation results (vs PyTorch fp32 reference)
+## Validation results (vs the PyTorch fp32 models of the Python prototype)
 
 TensorRT 10.16.1.11 (pip wheel, GPU). YOLO rows use imgsz 1280 (the only size run
 through TensorRT); the ORT rows ran on the CPU provider, because the onnxruntime-gpu wheel
@@ -53,15 +53,15 @@ SegFormer ORT gate was 99.5% (TensorRT: 99%).
 
 ## Chosen precision
 
-The detection-gate table above is the Plan 1 history: yolo26x fp16 failed that per-frame gate (worst resolution
+The detection-gate table above is the history of the export validation: yolo26x fp16 failed that per-frame gate (worst resolution
 0.941 precision), so fp32 was chosen then. The accurate profile later switched to fp16 after the event-level
-regression passed 17/17 strict with no borderline case; fp32 remains available with the hidden
+regression passed 17/17 strict against the Python prototype with no borderline case; fp32 remains available with the hidden
 `--det-precision fp32`.
 
 | Model | Precision |
 |---|---|
 | yolo26s | fp16 |
-| yolo26x | fp16 (event-level regression 17/17 strict, 0 borderline; see [tools/regression/README.md](../regression/README.md)) |
+| yolo26x | fp16 (event-level parity 17/17 strict, 0 borderline; see [tools/regression/README.md](../regression/README.md)) |
 | segformer-b1 | fp16 |
 | segformer-b5 | fp16 |
 | polarrcnn | fp32 |

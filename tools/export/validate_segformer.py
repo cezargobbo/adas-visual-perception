@@ -1,4 +1,4 @@
-"""Validate an exported SegFormer ONNX model against the reference Segmenter.
+"""Validate an exported SegFormer ONNX model against the Segmenter of the Python prototype.
 
 Reference: Segmenter.__call__ from prototype/python/dashcam_vision.py (fp16 PyTorch
 on GPU, as in the pipeline). Candidate (ONNX Runtime or TensorRT): the same

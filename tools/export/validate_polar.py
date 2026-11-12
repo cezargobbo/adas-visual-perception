@@ -1,4 +1,4 @@
-"""Validate the exported Polar R-CNN ONNX model against the reference PolarLaneDetector.
+"""Validate the exported Polar R-CNN ONNX model against the PolarLaneDetector of the Python prototype.
 
 Reference: lanes_polar.PolarLaneDetector (fp32, thr=0.44, as in the pipeline).
 Candidate (ONNX Runtime or TensorRT): same crop/resize preprocessing, raw outputs

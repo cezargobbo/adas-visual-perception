@@ -125,7 +125,7 @@ ffmpeg 3.4 in `/usr/local/bin`, which has NVENC but not the `p1`-`p7` presets, s
 
 ## 3. Python tools (optional)
 
-Only needed to regenerate the ONNX models and the regression reference. `video_demo` itself does not use
+Only needed to regenerate the ONNX models, the test fixtures and the Python prototype's traces and alerts. `video_demo` itself does not use
 Python. Python 3.12 and [uv](https://docs.astral.sh/uv/):
 
     uv venv .venv -p 3.12

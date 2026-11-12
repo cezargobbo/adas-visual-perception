@@ -1,7 +1,7 @@
 # Test fixtures
 
-Deterministic reference data for the C++ unit tests, generated from the Python reference
-(`reference/python/`, Ultralytics 8.4.208, `lap` 0.5.14) with fixed seeds. They contain no
+Deterministic test data for the C++ unit tests, generated from the original Python prototype
+(`prototype/python/`, Ultralytics 8.4.208, `lap` 0.5.14) with fixed seeds. They contain no
 video frames. Total size must stay below 2 MB.
 
 Regenerate (from the repository root, with the project venv):

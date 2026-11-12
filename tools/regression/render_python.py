@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the HUD views of the Python reference from a recorded trace.
+"""Render the HUD views of the Python prototype from a recorded trace.
 
 Uses the drawing code of prototype/python/dashcam_vision.py (AlertDisplay, draw_lanes, draw_detections,
 draw_lead, draw_fcw_box, draw_alerts, Segmenter.overlay, draw_legend) with the state recorded by

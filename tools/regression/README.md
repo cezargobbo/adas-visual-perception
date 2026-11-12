@@ -3,8 +3,13 @@
 The procedure and a summary of the results are in [docs/regression.md](../../docs/regression.md); this file is the
 detailed tool reference.
 
+The C++ is the maintained implementation, and its regression baseline is the set of golden alert CSVs in
+`tests/regression/golden/`. The tools that need the Python prototype (`dump_python.py`, `render_python.py`,
+`make_python_alerts.sh`, `compare_dumps.py`) serve the optional parity check and the recorded traces of the replay
+tests; the prototype is not maintained.
+
 - `dump_python.py`: dumps per-frame results (`frames.jsonl`, `seg/NNNNNN.png`, `meta.json`) of the Python
-  reference pipeline.
+  prototype.
 - `dump_python.py ... --adas` also writes `adas.jsonl` (schema below) and an `adas` object in `meta.json`;
   `frames.jsonl` and `seg/` are unchanged by the flag.
 - `make_tl_fixtures.py`: cuts up to 60 traffic-light crops (class 9 boxes) out of the published test videos
@@ -15,7 +20,7 @@ detailed tool reference.
   below, outputs only: `i`, `t`, `ego`, `lead`, `fcw`, `ldw` (+`mon`), `rlr`). The hidden
   `--det-precision fp16|fp32` overrides the detector engine precision of the profile (the accurate profile defaults
   to fp16 since the event-level regression below); use `--det-precision fp32` to rerun the detection-gate
-  comparison against the fp32 reference as in Plan 2.
+  comparison against the fp32 PyTorch models of the Python prototype, as at export time.
 - `compare_dumps.py REF_DIR CPP_DIR`: prints and gates one video (exit 0 only if every gate passes):
   - dets: recall and precision >= 0.97 (IoU >= 0.9, same class);
   - tracks: id consistency >= 0.95 (majority C++ id -> Python id mapping over IoU-matched tracks);
@@ -26,15 +31,15 @@ detailed tool reference.
     Reason for the 99.9% / max 2 tolerance: lanes right at the score threshold can differ by a point or two
     because the `endp*71` end-point rounding falls exactly on .5 (float32 noise between torch and TensorRT).
   - seg: >= 99% equal pixels in every PNG.
-  - Gates cannot pass on an empty comparison: the reference must contain seg PNGs, a reference with lanes must
+  - Gates cannot pass on an empty comparison: the Python dump must contain seg PNGs, a Python dump with lanes must
     produce at least one matched lane pair, and more than 5 mismatched pairs (mean |dx| > 20) per video fail.
 - `compare_dumps.py REF_DIR CPP_DIR --adas` additionally compares `adas.jsonl`: every alert event (type + side/level)
   must have a partner in the other dump within +-0.5 s (gate); `ego.state` agreement (>= 97%) and lead-id agreement
   under the majority id mapping (>= 95%) are printed as diagnostics.
   Borderline rule: an FCW event present in only one dump is classified BORDERLINE (listed separately, with both
   minimum TTCs, not a failure) when the dump that did not fire it had its smoothed `fcw.ttc` at or below
-  1.02 x the threshold of that level (warning `fcw_ttc` 2.7, critical `fcw_ttc_critical` 1.5, read from the reference
-  `meta.json`, else the reference defaults) within +-0.5 s of the event. Any other mismatch, and any LDW/RLR
+  1.02 x the threshold of that level (warning `fcw_ttc` 2.7, critical `fcw_ttc_critical` 1.5, read from the
+  `meta.json` of the Python dump, else the Python prototype defaults) within +-0.5 s of the event. Any other mismatch, and any LDW/RLR
   mismatch, fails (non-zero exit). The rule exists because per-frame equality across inference engines (torch vs
   TensorRT) is unattainable at a threshold crossing, while the logic replay tests prove the logic itself is exact.
 - `render_python.py --trace DIR --frames A:B --out OUT`: renders the Detections (`det_*`), Segmentation
@@ -42,14 +47,21 @@ detailed tool reference.
   video under `ADASVP_VIDEOS_DIR`) plus `manifest.json`. The C++ test `Renderer matches the Python drawing`
   compares the `Renderer` against `outputs/render_ref/STEM_A_B/` (gates: >= 99.5% identical pixels, mean abs
   diff <= 0.5 per channel); `ADASVP_RENDER_OUT=DIR` makes the test keep its own renders.
-- `make_python_alerts.sh`: regenerates the Python reference alerts.
-- `compare_alerts.py REF.csv CPP.csv [--tol 0.5]`: strict event-level comparison of two alert CSVs. Events are matched
-  by `type` + `level_side` within +-tol seconds on `time_s`; prints the pairs, the missing (reference only) and the
-  extra (C++ only) events and exits 0 only when nothing is missing or extra. The tolerance is never loosened.
-- `run_cpp_regression.sh --videos-dir DIR --profile fast|accurate [--dry] [--det-precision fp16|fp32]`: runs
-  `video_demo --no-seg` (the flags of `make_python_alerts.sh`) on the 17 videos of `videos.txt` and runs `compare_alerts.py`
-  against `tests/regression/python/<profile>/`; one line per video, exit 0 only if all 17 pairs are identical.
-  `--dry` (hidden `video_demo` flag) skips the output videos but still writes `<prefix>_alerts.csv`.
+- `make_python_alerts.sh`: regenerates the alerts of the Python prototype into `tests/regression/python/<profile>/`.
+- `compare_alerts.py BASELINE.csv CPP.csv [--tol 0.5]`: strict event-level comparison of two alert CSVs. Events are
+  matched by `type` + `level_side` within +-tol seconds on `time_s`; prints the pairs, the missing (baseline only) and
+  the extra (C++ only) events and exits 0 only when nothing is missing or extra. The tolerance is never loosened.
+- `run_cpp_regression.sh --videos-dir DIR --profile fast|accurate [--against golden|python] [--dry]
+  [--det-precision fp16|fp32]`: runs `video_demo --no-seg` on the 17 videos of `videos.txt` and runs
+  `compare_alerts.py` against `tests/regression/golden/<profile>/` (`--against golden`, the default, the C++
+  baseline: expected 17/17 identical) or `tests/regression/python/<profile>/` (`--against python`: the Python
+  prototype's alerts; the fast profile has the one borderline described below). One line per video, exit 0 only if
+  all 17 pairs are identical. `--dry` (hidden `video_demo` flag) skips the output videos but still writes
+  `<prefix>_alerts.csv`.
+- `make_golden.sh --videos-dir DIR --profile fast|accurate [--list FILE]`: regenerates
+  `tests/regression/golden/<profile>/` with `video_demo --dry --no-seg` (the profile defaults: the accurate profile
+  uses the fp16 detector) and copies only the CSVs. Changing the golden files is an intentional, reviewed change:
+  commit it on its own, with the reason.
 
 ```
 python tools/regression/dump_python.py VIDEO --profile fast --out outputs/dumps/fast/STEM
@@ -80,8 +92,8 @@ C++ = `adasvp_dump --no-write` (seg every 30 frames). Python timings are noisy (
 
 ## adas.jsonl schema
 
-One JSON object per frame (same order as `frames.jsonl`), produced by driving the reference classes with the
-reference defaults exactly like the main loop of `dashcam_vision.py` (lane update, then detection/track, lead,
+One JSON object per frame (same order as `frames.jsonl`), produced by driving the classes of the Python prototype with its
+defaults exactly like the main loop of `dashcam_vision.py` (lane update, then detection/track, lead,
 FCW, LDW, RLR). numpy arrays are lists, `None` is `null`, floats keep full precision (shortest round-trip
 repr); non-finite floats are the strings `"inf"`, `"-inf"`, `"nan"`. Boxes are `[x1,y1,x2,y2]`.
 
@@ -105,17 +117,20 @@ the defaults used, the derived windows (`ego_hold_frames`, `ego_persist`, `fcw_o
 `ldw_off_n`, `ldw_row`, `lead_hold_frames`, `tl_max_lost`) and the tracker geometry (`ego_ys`, `ego_t_row`,
 `ego_wmin`, `ego_wmax`, `ego_gate`).
 
-## Event-level regression: C++ `video_demo` vs Python reference (17 videos x 2 profiles)
+## Event-level parity: C++ `video_demo` vs the Python prototype (17 videos x 2 profiles)
+
+These are the results recorded when the port was made: the evidence that it preserved the behaviour of the Python
+prototype. The regression going forward runs against the C++ golden files (`run_cpp_regression.sh`, default).
 
 `run_cpp_regression.sh --videos-dir DIR --profile P --dry` (RTX 4070 Laptop, dry run = no encoding, `--no-seg`,
-default detector of each profile at the time of these runs: fast fp16, accurate fp32) against `tests/regression/python/P/` (strict, +-0.5 s, type + level/side).
-The counts are all alert events (FCW + LDW + RLR). "Python fps" = frames / wall time of the reference run in
+default detector of each profile at the time of these runs: fast fp16, accurate fp32) against `tests/regression/python/P/` (strict, +-0.5 s, type + level/side; `run_cpp_regression.sh --against python`).
+The counts are all alert events (FCW + LDW + RLR). "Python fps" = frames / wall time of the Python prototype run in
 `summary.txt` (model loading and the detections video included, shared GPU: noisy); "C++ fps" = the `total` fps
 printed by `video_demo` at the end of the run (decode + lanes + detection + tracking + ADAS, no encoding).
 
 ### Fast profile (fp16 detector, the fast default)
 
-| video | frames | ref events | C++ events | matched | borderline | Python fps | C++ fps | result |
+| video | frames | Python events | C++ events | matched | borderline | Python fps | C++ fps | result |
 |---|---|---|---|---|---|---|---|---|
 | sp1_crop_30fps | 4786 | 4 | 3 | 3 | 1 | 21.3 | 124.4 | PASS (borderline) |
 | sp1_crop_2_30fps | 1889 | 1 | 1 | 1 | 0 | 20.5 | 124.5 | PASS |
@@ -140,7 +155,7 @@ printed by `video_demo` at the end of the run (decode + lanes + detection + trac
 
 ### Accurate profile (fp32 detector, record of the original runs; fp16 experiment in the last two columns)
 
-| video | frames | ref events | C++ events | matched | borderline | Python fps | C++ fps (fp32) | result | C++ fps (fp16) | fp16 matched/ref |
+| video | frames | Python events | C++ events | matched | borderline | Python fps | C++ fps (fp32) | result | C++ fps (fp16) | fp16 matched/Python |
 |---|---|---|---|---|---|---|---|---|---|---|
 | sp1_crop_30fps | 4786 | 5 | 5 | 5 | 0 | 11.2 | 20.4 | PASS | 48.0 | 5/5 |
 | sp1_crop_2_30fps | 1889 | 1 | 1 | 1 | 0 | 11.0 | 20.4 | PASS | 48.2 | 1/1 |
@@ -176,6 +191,6 @@ All 17 pairs pass strictly (17/17 identical events, no borderline), with 48.6 fp
 dry run (2.4x; the fp16 TensorRT engine of yolo26x takes about 10 min to build the first time, then it is cached).
 Decision: the accurate profile now defaults to the fp16 detector engine (`Config::accurate()`), based on this
 experiment; fp32 stays available with the hidden `--det-precision fp32`. The fp32 table above is kept as the record
-of the original runs, and the reference CSVs were not regenerated.
+of the original runs, and the Python prototype's CSVs were not regenerated.
 Recording the accurate-profile videos (`--no-seg`, with encoding) ran at 11.5-13 fps in fp32 because Python
-dumps shared the GPU at the same time; the dry-run numbers above are the reference.
+dumps shared the GPU at the same time; the dry-run numbers above are the ones to compare with.

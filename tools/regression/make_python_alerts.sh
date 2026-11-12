@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regenerate the Python reference alerts (detection only, --no-seg) for every
+# Regenerate the alerts of the original Python prototype (detection only, --no-seg) for every
 # video listed in videos.txt and copy the CSVs into tests/regression/python/.
 set -euo pipefail
 
