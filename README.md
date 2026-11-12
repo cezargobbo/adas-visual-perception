@@ -5,14 +5,6 @@ distance, forward collision warning (FCW), lane departure warning (LDW) and red-
 segmentation layer is drawn on top. The library is `adasvp`; `video_demo` is the command-line program that
 annotates a video and writes the alert events to a CSV.
 
-## Origin
-
-The project started as a Python prototype (now in [prototype/python/](prototype/python/)), which the
-author tuned by watching the annotated output videos. It was then ported line by line to C++ and TensorRT, and the
-port was checked against the prototype event by event (see [Measured behaviour](#measured-behaviour)). The C++ is
-the maintained implementation and the source of truth: `tests/regression/golden/` holds its alert baseline. The
-Python prototype is kept for history and for an optional parity check, and is not maintained.
-
 <table>
   <tr>
     <td align="center" width="50%">
@@ -84,7 +76,7 @@ thresholds.
 
 ## Measured behaviour
 
-When the port was made, `video_demo` was compared with the Python prototype on the 17 test videos (alert events
+When the port was made, `video_demo` was compared with the Python prototype ([Origin](#origin)) on the 17 test videos (alert events
 matched by type and level or side, within 0.5 s, the tolerance never loosened). The port preserved the behaviour
 the author had validated on the prototype's output videos:
 
@@ -303,3 +295,11 @@ licenses:
 Origins and credits: [models/README.md](models/README.md). The `red_crop_*` test videos come from
 [Quinn Dickinson's YouTube channel](https://www.youtube.com/@QuinnDickinson2610) (the clips carry its
 "Copyright ©2022 Quinn Dickinson" watermark).
+
+## Origin
+
+The project started as a Python prototype (now in [prototype/python/](prototype/python/)), which the
+author tuned by watching the annotated output videos. It was then ported line by line to C++ and TensorRT, and the
+port was checked against the prototype event by event (see [Measured behaviour](#measured-behaviour)). The C++ is
+the maintained implementation and the source of truth: `tests/regression/golden/` holds its alert baseline. The
+Python prototype is kept for history and for an optional parity check, and is not maintained.
