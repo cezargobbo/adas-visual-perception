@@ -28,8 +28,23 @@ annotates a video and writes the alert events to a CSV.
   </tr>
 </table>
 
-Each GIF shows 10 s centred on the event (accurate profile, detections view, from the C++ output). The `red_crop_*`
-clips carry a watermark of the channel they come from; see [License](#license).
+Each GIF is 10 s of the C++ output (accurate profile, detections view), centred on the moment the alert fires. The
+green area is the ego lane. The lead vehicle (the one FCW watches) has a red `LEAD` box and a yellow line to the
+camera with its distance; when FCW fires, the box gets an orange outline.
+
+- **FCW on `sp1_crop_30fps`, 30.63 s:** a downtown street. The car closes in on the lead vehicle 27 m ahead in its
+  lane, the time to collision (TTC) falls to 2.6 s, under the 2.7 s threshold, and the `FCW WARNING` banner appears
+  with the TTC.
+- **FCW on `sp1_crop_2_30fps`, 18.39 s:** crossing an intersection behind a white car. The car is 10.7 m ahead
+  when the TTC falls to 2.2 s and the warning fires.
+- **LDW (left) on `sp1_crop_4_30fps`, 148.08 s:** a wide avenue. The car drifts towards the left line of its lane:
+  it is 0.27 m from the line and moving sideways at 0.78 m/s, so it would cross the line in 0.34 s. `LDW << LEFT`
+  appears and the left line turns orange.
+- **RLR on `red_crop_11_30fps`, 15.53 s:** a suburban road. The traffic lights over the car's lane are red as it
+  approaches (seen red for 3.8 s) and are still red when they leave through the top of the frame, so the car went
+  through on red and the `RED LIGHT RUNNING` banner fires.
+
+The `red_crop_*` clips carry a watermark of the channel they come from; see [License](#license).
 
 ## What it does
 
