@@ -143,3 +143,22 @@ def test_stage_release_sums(tmp_path):
     r = run("stage_release.sh", "--videos-dir", videos, "--models-dir", models, "--out", tmp_path / "out2")
     assert r.returncode == 1
     assert "red_crop_13_30fps.mp4" in r.stderr
+
+
+def test_default_dest_is_repo_relative(tmp_path):
+    """Without --dest the scripts use models/ and videos/ next to scripts/, not the current directory."""
+    import shutil
+
+    rel = make_release(tmp_path / "rel")
+    fake_repo = tmp_path / "repo"
+    shutil.copytree(SCRIPTS, fake_repo / "scripts")
+    cwd = tmp_path / "elsewhere"
+    cwd.mkdir()
+    for script, args, sub in (("download_models.sh", ("--profile", "fast"), "models"), ("download_videos.sh", (), "videos")):
+        r = subprocess.run(
+            ["bash", str(fake_repo / "scripts" / script), *args, "--base-url", f"file://{rel}"],
+            capture_output=True, text=True, cwd=cwd,
+        )
+        assert r.returncode == 0, r.stderr
+        assert list((fake_repo / sub).rglob("*.*"))
+        assert not (cwd / sub).exists()

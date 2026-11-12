@@ -30,14 +30,15 @@ flowchart TD
     SG --> O[FrameResult]
 ```
 
-1. Detection and tracking (needs `enable_det`). Tracked boxes are clipped to the frame.
-2. Lane detection, then `EgoLaneTracker::update` (needs `enable_lanes`).
+1. Detection and tracking (`YoloDetector`, `ByteTracker`; needs `enable_det`). Tracked boxes are clipped to the frame.
+2. Lane detection (`LaneDetector`), then `EgoLaneTracker::update` (needs `enable_lanes`).
 3. Lead vehicle (`LeadVehicleEstimator`), using the ego lane as corridor when `lane_corridor` is on and the lane is
    available.
-4. FCW. The lead is dropped for FCW when it is outside the ego lane (no margin).
-5. LDW (needs lanes and `enable_ldw`).
-6. Traffic-light colour and RLR (needs detection and `enable_rlr`).
-7. Segmentation, last, every `seg_every` frames; between runs the previous map is reused. No ADAS stage reads it.
+4. FCW (`FCWMonitor`). The lead is dropped for FCW only when `lane_corridor` is on, the ego lane is available and
+   the lead is not contained in it (margin 0) (`src/pipeline.cpp`).
+5. LDW (`LDWMonitor`; needs lanes and `enable_ldw`).
+6. Traffic-light colour and RLR (`TrafficLightTracker`, `RLRMonitor`; needs detection and `enable_rlr`).
+7. Segmentation (`Segmenter`), last, every `seg_every` frames; between runs the previous map is reused. No ADAS stage reads it.
 
 Couplings that follow from this order:
 
@@ -51,7 +52,7 @@ Drawing is not part of `process()`. `adasvp::Renderer` draws a `FrameResult` aft
 
 ## 1. Detection and tracking
 
-Files: `src/models/yolo_detector.cpp`, `src/preprocess/letterbox.cpp`, `src/track/byte_tracker.cpp`,
+Classes: `YoloDetector`, `ByteTracker`. Files: `src/models/yolo_detector.cpp`, `src/preprocess/letterbox.cpp`, `src/track/byte_tracker.cpp`,
 `src/track/kalman_xyah.cpp`, `src/track/assignment.cpp`.
 
 Detector. A YOLO26 ONNX model run through TensorRT. The frame is letterboxed the Ultralytics way: scaled by
@@ -90,7 +91,7 @@ count, whatever the video fps; the `frame_rate` argument of `ByteTracker` is unu
 
 ## 2. Semantic segmentation
 
-Files: `src/models/segmenter.cpp`, `src/preprocess/kernels.cu`, `src/postprocess/seg_kernels.cu`.
+Class: `Segmenter`. Files: `src/models/segmenter.cpp`, `src/preprocess/kernels.cu`, `src/postprocess/seg_kernels.cu`.
 
 SegFormer (Cityscapes, 19 classes) through TensorRT. The frame is resized on the GPU to the input size of the
 engine (1024x576 for B1, 1280x720 for B5), normalised with the ImageNet mean `0.485 0.456 0.406` and standard
@@ -108,7 +109,7 @@ views; no ADAS stage reads it, so `--no-seg` changes no alert.
 
 ## 3. Lane detection
 
-Files: `src/models/lane_detector.cpp`, `src/preprocess/letterbox.cpp` (`polar_to_device`).
+Class: `LaneDetector`. Files: `src/models/lane_detector.cpp`, `src/preprocess/letterbox.cpp` (`polar_to_device`).
 
 Polar R-CNN (DLA-34, trained on CurveLanes), `polarrcnn_curvelanes_dla34.onnx`, always run in fp32. The top part of
 the frame is cut (the crop starts at row `round(H * 640 / 1440)`), the rest is resized to 800x320 and fed as
@@ -262,10 +263,10 @@ Disarm reasons, checked in this order (the key under which `AdasStats::ldw_frame
 | `state` | ego lane not `Detected`, or a boundary not observed this frame |
 | `glitch` | a jump-gate rejection, re-acquisition or implausible lane this frame |
 | `obs_vs_trk` | mean distance between the raw observation and the tracked boundary over the lower half of the rows exceeds 40 px on either side |
-| `width` | lane width at the reference row, normalised to the bottom row, outside the min/max range of the ego lane |
+| `width` | lane width at the reference row, divided by `t_row[r]` of that row to normalise it to the bottom row (`src/adas/ldw.cpp`), outside the min/max range of the ego lane |
 | `convergence` | the width does not decrease towards the horizon, or the row where it vanishes is farther than `0.07 H` from the horizon row |
 | `width_profile` | the width is not linear in y: largest residual above `0.04` of the reference width |
-| `curve` | a boundary is not straight: largest residual of a line fit above `0.0065 W` (about 12 px) |
+| `curve` | a boundary is not straight: largest residual of a line fit above `0.0065 W` (about 12.5 px at 1920 px wide) |
 | `vanishing_point` | the two boundaries meet more than `0.08 W` apart, or more than `0.2 W` from the image centre |
 | `arming` | less than about 1 s of clean history, or the lane width varied: standard deviation / mean >= 0.05 |
 | `lat_speed` | lateral speed above 1.5 m/s (the history is cleared) |
@@ -278,13 +279,13 @@ crossing is `tlc = d / v`.
 
 A side triggers when all of these hold: `d < 0.25 + 0.3 v`, `d > -0.5`, `v >= 0.15` m/s, `tlc < 1.0` s, the net
 approach over the history window is at least 0.25 m, the side is not in cooldown (2.5 s after its last alert ended)
-and LDW is not suppressed (2.0 s after a disarm that happens while an alert is active or shortly after one, which is
-how a deliberate crossing is silenced). The condition must hold for `max(1, int(0.3 * fps))` consecutive frames and the
+and LDW is not suppressed (for 2.0 s after a disarm for any reason other than `state` or `arming`, when an alert was
+active or had last been active less than 1.5 s earlier; this is how a deliberate crossing is silenced). The condition must hold for `max(1, int(0.3 * fps))` consecutive frames and the
 alert ends after `max(1, int(0.5 * fps))` frames without it. `LdwStatus` carries the active side, `d`, `v` and `tlc`.
 
 ## 8. Traffic-light colour and RLR
 
-Files: `src/adas/traffic_light.hpp`, `src/adas/traffic_light.cpp`, `src/adas/rlr.hpp`, `src/adas/rlr.cpp`.
+Classes: `TrafficLightTracker`, `RLRMonitor`. Files: `src/adas/traffic_light.hpp`, `src/adas/traffic_light.cpp`, `src/adas/rlr.hpp`, `src/adas/rlr.cpp`.
 
 Colour of a traffic light (`traffic_light_state`). Applied to each class-9 box (except boxes cut by the top edge:
 `y1 <= 0.01 H`). The crop must be at least 4 px on each side. It is classed as vertical when `h >= 1.3 w`,
@@ -301,8 +302,8 @@ Traffic-light tracker (`TrafficLightTracker`). A dedicated tracker, not ByteTrac
 `TrafficLight::track_id` and do not match `Object::track_id`. It predicts each box with a constant velocity model
 (Theil-Sen over the last 6 entries of centre and log size) and matches greedily on IoU minus a small centre-distance
 penalty. A pair is a candidate when the IoU is above 0.1 or the centres are closer than the larger box side, and the
-height ratio is between 0.5 and 2.0. A track is closed after `max(1, round(0.25 * fps))` frames without a match
-(`max_lost_s = 0.25`); the history is trimmed to 90 entries once it exceeds 120.
+height ratio is between 0.5 and 2.0. A track is closed when its lost count exceeds `max(1, round(0.25 * fps))` (`max_lost_s = 0.25`), that is, on the
+9th consecutive frame without a match at 30 fps; the history is trimmed to 90 entries once it exceeds 120.
 
 RLR (red-light running) means the vehicle passes a red light that belongs to its path. The light's box climbs and
 grows in the image as the car approaches; the event is evaluated once per track, when the light leaves through the top
@@ -335,7 +336,7 @@ Two events are at least `cooldown_s` apart. The RLR row of the alerts carries `r
 
 ## 9. Drawing
 
-Files: `include/adasvp/render.hpp`, `src/render/renderer.cpp`, `src/render/draw_primitives.cpp`.
+Class: `Renderer`. Files: `include/adasvp/render.hpp`, `src/render/renderer.cpp`, `src/render/draw_primitives.cpp`.
 
 `Renderer` is stateful because the alert banners persist and blink across frames. Call `render(frame, result, views)`
 once per frame, in order. Views: `Detections` (lanes, boxes, lead vehicle, banners on the raw frame), `Segmentation`
@@ -397,7 +398,7 @@ The library itself writes `frame = -1` in `Alert`; the caller fills it.
 - Monocular distance is an estimate. Without calibration, `hfov`, `cam_height` and `horizon` are defaults; the width
   cue assumes a typical rear width per class, the ground cue a flat road. Set them for your camera.
 - FCW uses the scale expansion of the lead's box, so it needs a stable box. It restarts its window on cut, small or
-  off-path boxes, and it only warns for a lead inside the ego lane (when the lane is available).
+  off-path boxes, and with `lane_corridor` on it only warns for a lead inside the ego lane (when the lane is available).
 - LDW is conservative by design: any failed check disarms it, so on bends, near intersections or with lane
   ambiguity it stays silent rather than guess.
 - RLR only fires for a light that is tracked for at least a second, red for at least 1.5 s, in the central part of

@@ -17,6 +17,8 @@ What is compared:
 
 ## Prerequisites
 
+- Python 3 (the `.venv` if it exists, otherwise `python3`; `compare_alerts.py` only uses the standard library), for the
+  comparison of the alert CSVs.
 - A build of the C++ code (`build/native-release/examples/video_demo`, `build/native-release/adasvp_dump`) and the
   models in `models/`. See the README.
 - For the Python side: the `.venv` of the README (`requirements.txt`) and the model weights set up with
@@ -62,12 +64,18 @@ If you only have the videos of the release, restrict the run to them:
 
 ```bash
 scripts/download_videos.sh                      # puts the seven clips in videos/ and videos/redlights/
-tools/regression/run_cpp_regression.sh --videos-dir videos --profile fast --dry \
+tools/regression/run_cpp_regression.sh --videos-dir videos --profile accurate --dry \
     --list tools/regression/videos_public.txt
 ```
 
-The list has seven videos, so the summary line reads `7/7 pairs identical` on success. The reference CSVs of those
-seven are already in the repository.
+The list has seven videos, so the summary line reads `7/7 pairs identical` on success with the accurate profile.
+The reference CSVs of those seven are already in the repository.
+
+With `--profile fast` the same list gives `6/7` and exit code 1: the FCW warning of `sp1_crop_30fps` at 127.96 s
+is the documented borderline case (see Results). To confirm that a failure is this kind of case, dump both pipelines
+on that video and run `compare_dumps.py --adas` (step 3 below), which lists it as BORDERLINE instead of a failure.
+Another GPU or another TensorRT version can move threshold crossings, so a different borderline FCW may appear on
+your machine.
 
 `compare_alerts.py REF.csv CPP.csv [--tol 0.5]` is the comparison itself. Two events match when they have the same
 `type` and the same `level_side` and their `time_s` differ by at most 0.5 s; each event is used once. It prints the
@@ -85,10 +93,11 @@ build/native-release/adasvp_dump VIDEO --profile fast --adas --out outputs/dumps
 python tools/regression/compare_dumps.py outputs/dumps/fast/STEM outputs/dumps_cpp/fast/STEM --adas
 ```
 
-Without `--adas` the comparison covers the detector, tracker, lanes and segmentation, with these gates: detection
+Without `--adas` the comparison covers the detector, tracker, lanes and segmentation, with these main gates: detection
 recall and precision at least 0.97 (IoU at least 0.9, same class), track id consistency at least 0.95, lane count
 equal on at least 98% of the frames with a mean horizontal error of at most 2 px, and at least 99% equal segmentation
-pixels. With `--adas` every alert event (type and side or level) must also have a partner in the other dump within
+pixels. The lane gates also require that the point count of matched lanes differs by at most 1 on at least 99.9% of
+the pairs, with a maximum difference of 2 (the full list is in the docstring of `compare_dumps.py`). With `--adas` every alert event (type and side or level) must also have a partner in the other dump within
 0.5 s. The agreement of the ego-lane state and of the lead id are printed as diagnostics.
 
 ### The borderline rule for FCW
@@ -122,8 +131,9 @@ Events (level 1, strict, +-0.5 s):
 
 The borderline case is the FCW warning of `sp1_crop_30fps` at 127.96 s on the fast profile. The smoothed TTC minimum
 around the event is 2.664 s in Python and 2.659 s in C++, against the 2.7 s threshold. Both dip below the threshold,
-by a tiny margin; a warning needs the TTC to stay under it for a sustained number of frames
-([algorithm.md](algorithm.md), section 6), and only the Python run did. Both minima are within `1.02 x` the
+by a tiny margin. A warning needs the TTC to stay under it for a sustained number of frames
+([algorithm.md](algorithm.md), section 6), and only the Python run raised it, presumably because the C++ TTC stayed
+below 2.7 for fewer than the 9 consecutive frames the warning needs; the per-frame dumps are not reproduced here. Both minima are within `1.02 x` the
 threshold, which is what the borderline rule above accepts. The accurate profile uses the fp16 detector by default,
 which is the configuration behind the 17 of 17 result.
 
@@ -138,7 +148,7 @@ wall time of the reference run, which includes model loading and shares the GPU,
 
 The per-video tables are in [tools/regression/README.md](../tools/regression/README.md).
 
-Tests: 72 of 72 passing in the last full run, with the models, videos and traces present.
+Tests: 74 of 74 passing in the last full run, with the models, videos and traces present.
 
 ## Replay tests and their traces
 

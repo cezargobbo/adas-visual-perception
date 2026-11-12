@@ -1,4 +1,4 @@
-"""Documentation checks: every relative link and image in README.md and docs/*.md must resolve to a file."""
+"""Documentation checks: every relative link and image in the git-tracked *.md files must resolve to a file."""
 import re
 import subprocess
 from pathlib import Path
@@ -14,9 +14,8 @@ EXTERNAL = re.compile(r"^(?:[a-zA-Z][a-zA-Z0-9+.-]*:|//)")  # http:, https:, mai
 
 
 def doc_files():
-    files = [ROOT / "README.md"]
-    files += sorted((ROOT / "docs").glob("*.md"))
-    return [f for f in files if f.exists()]
+    out = subprocess.run(["git", "ls-files", "*.md"], cwd=ROOT, capture_output=True, text=True, check=True).stdout
+    return [ROOT / n for n in sorted(out.splitlines()) if (ROOT / n).exists()]
 
 
 def link_targets(text):

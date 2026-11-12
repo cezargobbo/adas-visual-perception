@@ -44,6 +44,7 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo="$(cd "$here/../.." && pwd)"
 cd "$repo"
 py=".venv/bin/python"
+[[ -x "$py" ]] || py="python3"  # compare_alerts.py is stdlib-only
 ref="tests/regression/reference/$profile"
 dest="$out/$profile${prec:+_$prec}"
 mkdir -p "$dest"

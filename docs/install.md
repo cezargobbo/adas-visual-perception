@@ -47,7 +47,11 @@ Run it with the wrapper, which mounts the models, the input video and the output
 `--models-dir` (**tested**):
 
     scripts/download_models.sh --profile fast
+    scripts/download_videos.sh
     scripts/video_demo_docker.sh videos/redlights/red_crop_11_30fps.mp4 -o outputs/docker/red_crop_11_30fps --profile fast --no-seg --dry
+
+(`download_videos.sh` is described in section 4. Without `-o` the wrapper writes to
+`outputs/<video name>` in the current directory, like the native `video_demo`.)
 
 - Write options as `--option value` (not `--option=value`), so the wrapper can translate paths. Put the
   video before `--` if its name starts with a dash (`... -- -clip.mp4`).
@@ -102,7 +106,7 @@ TensorRT packages from NVIDIA's apt repository for Ubuntu 24.04.
 
    CLI11 is fetched by CMake if it is not installed; `sudo apt install libcli11-dev` avoids the download.
 
-6. **Build** (**tested**: configure, build and `ctest` with the packages above; 72/72 tests passed, none skipped, with models and videos present and `ADASVP_VIDEOS_DIR` set):
+6. **Build** (**tested**: configure, build and `ctest` with the packages above; 74/74 tests passed, none skipped, with models and videos present and `ADASVP_VIDEOS_DIR` set):
 
        cmake --preset native-release
        cmake --build build/native-release -j
@@ -155,7 +159,8 @@ repeated on the next run and a corrupt file never gets its final name.
 | `--profile all` (the default) | about 722 MB |
 | the seven videos | about 1 GB |
 
-Models go to `models/` (not versioned). Videos go to `videos/`, with the `red_crop_*` clips in
+By default the scripts write to `models/` and `videos/` of the repository, wherever you run them from (`--dest`
+changes that). Models are not versioned. Videos go to `videos/`, with the `red_crop_*` clips in
 `videos/redlights/`. The `red_crop_*` clips come from
 [Quinn Dickinson's YouTube channel](https://www.youtube.com/@QuinnDickinson2610). Models carry their own
 licenses: see `models/README.md`. The scripts only need `curl` and `sha256sum`.
@@ -182,7 +187,7 @@ about ten) and is cached afterwards.
 
 | Symptom | Fix |
 |---|---|
-| `docker: Error response from daemon: could not select device driver "" with capabilities: [[gpu]]`, or the wrapper prints the toolkit hint and exits with 2 | The NVIDIA Container Toolkit is not installed or Docker was not restarted. Install it, then `sudo nvidia-ctk runtime configure --runtime=docker && sudo systemctl restart docker`. Check with `docker run --rm --gpus all adas-visual-perception nvidia-smi`. |
+| `docker: Error response from daemon: could not select device driver "" with capabilities: [[gpu]]`, or the wrapper prints the toolkit hint and exits with 2 | The NVIDIA Container Toolkit is not installed or Docker was not restarted. Install it, then `sudo nvidia-ctk runtime configure --runtime=docker && sudo systemctl restart docker`. Check with `docker run --rm --gpus all nvcr.io/nvidia/tensorrt:25.11-py3 nvidia-smi`. |
 | CMake picks the wrong `nvcc` (CUDA 12.0 from the Ubuntu package, or "No CMAKE_CUDA_COMPILER could be found") | The preset uses `/usr/local/cuda/bin/nvcc`. Point it at your toolkit: `cmake --preset native-release -DCMAKE_CUDA_COMPILER=/path/to/nvcc`. Delete `build/native-release` when you change the compiler. |
 | `cached engine unusable, rebuilding: ...` | The cached engine does not match this TensorRT, GPU or driver. This is normal after an upgrade; the engine is rebuilt and the cache is overwritten. If it repeats on every run, check that `${XDG_CACHE_HOME:-$HOME/.cache}/adasvp/engines` is writable. |
 | The first run takes many minutes | TensorRT is building the engines for your GPU (the `yolo26x` fp16 one takes about ten minutes). They are cached in `${XDG_CACHE_HOME:-$HOME/.cache}/adasvp/engines`; later runs start in seconds. |

@@ -30,9 +30,9 @@ flowchart LR
     D --> L[lanes + ego lane]
     L --> LV[lead vehicle + distance]
     LV --> FCW[FCW]
-    LV --> LDW[LDW]
+    L --> LDW[LDW]
     D --> RLR[traffic light + RLR]
-    L --> S[segmentation]
+    F --> S[segmentation]
     FCW --> R[FrameResult]
     LDW --> R
     RLR --> R
@@ -147,7 +147,7 @@ runs `video_demo` in it.
 
     scripts/download_models.sh [--profile fast|accurate|all] [--dest DIR]
 
-The script downloads from the GitHub release into `models/`, checks each sha256 and only then gives the file its
+The script downloads from the GitHub release into `models/` of the repository (whatever the current directory), checks each sha256 and only then gives the file its
 final name, so an interrupted download is simply repeated. It needs `curl` and `sha256sum`.
 
 | Profile | Files | Download |
@@ -163,8 +163,8 @@ To export the models yourself instead, see [docs/install.md](docs/install.md) an
 
     scripts/download_videos.sh [--dest DIR]
 
-Seven clips (about 1 GB in total) go to `videos/`, with the `red_crop_*` ones in `videos/redlights/`. The
-`red_crop_*` clips come from [Quinn Dickinson's YouTube channel](https://www.youtube.com/@QuinnDickinson2610).
+Seven clips (about 1 GB in total) go to `videos/` of the repository (whatever the current directory), with the `red_crop_*` ones in
+`videos/redlights/`. The `red_crop_*` clips come from [Quinn Dickinson's YouTube channel](https://www.youtube.com/@QuinnDickinson2610).
 `video_demo` takes any video file, so you can also use your own clips.
 
 ## Run

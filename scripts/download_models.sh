@@ -2,6 +2,7 @@
 # Download the ONNX models from the GitHub release and verify their sha256.
 set -euo pipefail
 . "${BASH_SOURCE[0]%/*}/lib/fetch.sh"
+REPO_ROOT=$(cd "${BASH_SOURCE[0]%/*}/.." && pwd)
 
 usage() {
   cat <<USAGE
@@ -9,7 +10,7 @@ Usage: scripts/download_models.sh [--profile fast|accurate|all] [--dest DIR] [--
 
   --profile  fast: yolo26s + segformer-b1 + polar; accurate: yolo26x + segformer-b5 + polar;
              all: the five models (default)
-  --dest     destination directory (default: models)
+  --dest     destination directory (default: models/ of the repository, whatever the current directory)
   --tag      release tag (default: $DEFAULT_TAG)
   --base-url download base URL (default: $REPO_URL/releases/download/<tag>)
 
@@ -17,7 +18,7 @@ Exit codes: 0 ok, 1 download or checksum failure, 2 usage error or missing curl/
 USAGE
 }
 
-profile=all dest=models tag=$DEFAULT_TAG base=""
+profile=all dest=$REPO_ROOT/models tag=$DEFAULT_TAG base=""
 while [ $# -gt 0 ]; do
   case $1 in
     -h|--help) usage; exit 0 ;;
@@ -53,7 +54,7 @@ done
 cat <<LICENSES
 Licenses:
   YOLO26: AGPL-3.0.
-  SegFormer: NVIDIA Source Code License, non-commercial.
+  SegFormer: NVIDIA Source Code License, non-commercial use only.
   Polar R-CNN: no declared license, redistributed for non-commercial academic use with credit.
   CurveLanes and Cityscapes data: non-commercial.
 LICENSES

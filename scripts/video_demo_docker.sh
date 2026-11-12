@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Run video_demo inside the adas-visual-perception image.
 # Usage: scripts/video_demo_docker.sh INPUT.mp4 [-o PREFIX] [video_demo options...]
+# Without -o the outputs go to outputs/<input name> in the current directory (like the native video_demo).
 #
 # Mounted read-only: the repository (/work/repo), models/ (/work/models), the input video's directory.
 # Mounted read-write: the directory of the -o prefix and the engine cache (/cache/adasvp).
@@ -81,6 +82,15 @@ while [ $# -gt 0 ]; do
   shift
 done
 
+# No -o given: mirror the native default (outputs/<input stem> under the current directory), because the
+# container's /work is not writable.
+if [ -n "$input" ] && [ -z "$outdir" ]; then
+  base=${input##*/}
+  p="$PWD/outputs/${base%.*}"
+  outdir=$(host_outdir "$p")
+  args+=("-o" "/out/${p##*/}")
+fi
+
 command -v docker >/dev/null 2>&1 || { echo "error: docker not found in PATH" >&2; exit 2; }
 mkdir -p "$CACHE_DIR"
 
@@ -116,7 +126,7 @@ error: the container could not use the GPU.
 Install the NVIDIA Container Toolkit and restart Docker:
   https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
   sudo nvidia-ctk runtime configure --runtime=docker && sudo systemctl restart docker
-Check with: docker run --rm --gpus all adas-visual-perception nvidia-smi
+Check with: docker run --rm --gpus all nvcr.io/nvidia/tensorrt:25.11-py3 nvidia-smi
 See docs/install.md, section "When it does not work".
 HINT
   exit 2
