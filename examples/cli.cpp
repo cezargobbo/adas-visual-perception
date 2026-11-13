@@ -456,4 +456,9 @@ OutputPlan plan_outputs(const Options& o) {
   return p;
 }
 
+bool show_window_closed(double visible, double aspect_ratio) {
+  if (visible >= 0) return visible < 1;
+  return !(aspect_ratio > 0);  // also true for NaN
+}
+
 }  // namespace adasvp::example

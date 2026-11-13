@@ -160,7 +160,7 @@ or keep it in an untracked `CMakeUserPresets.json` that inherits the preset:
 `video_demo` ends up in `build/native-release/examples/`. TensorRT engines are built on first use and cached in
 `${XDG_CACHE_HOME:-$HOME/.cache}/adasvp/engines`.
 
-The test suite has 74 tests (74/74 in the last full run, none skipped). Without models they cover Config and the command line,
+The test suite has 75 tests (75/75 in the last full run, none skipped). Without models they cover Config and the command line,
 the 60 traffic-light fixtures, and the synthetic RLR, FCW, lead-vehicle, ego-lane and LDW-label tests. With
 `models/` populated and `ADASVP_VIDEOS_DIR` pointing at the test videos they add the pipeline and regression
 tests. The trace-replay and renderer-comparison tests also need gitignored traces and are skipped when those are

@@ -106,7 +106,7 @@ TensorRT packages from NVIDIA's apt repository for Ubuntu 24.04.
 
    CLI11 is fetched by CMake if it is not installed; `sudo apt install libcli11-dev` avoids the download.
 
-6. **Build** (**tested**: configure, build and `ctest` with the packages above; 74/74 tests passed, none skipped, with models and videos present and `ADASVP_VIDEOS_DIR` set):
+6. **Build** (**tested**: configure, build and `ctest` with the packages above; 75/75 tests passed, none skipped, with models and videos present and `ADASVP_VIDEOS_DIR` set):
 
        cmake --preset native-release
        cmake --build build/native-release -j

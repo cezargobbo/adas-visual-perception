@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <fcntl.h>
 #include <unistd.h>
 #include <catch2/matchers/catch_matchers_string.hpp>
@@ -490,4 +491,17 @@ TEST_CASE("ffmpeg writer: a missing ffmpeg is an error at construction", "[cli]"
 TEST_CASE("ffmpeg_available finds an executable on PATH", "[cli]") {
   FakeFfmpeg fake("exit 0\n");
   CHECK(ffmpeg_available());
+}
+
+TEST_CASE("show window: closed detection works with and without WND_PROP_VISIBLE", "[cli]") {
+  const double nan = std::numeric_limits<double>::quiet_NaN();
+  // Backends that report visibility (Qt): 1 open, 0 closed.
+  CHECK_FALSE(show_window_closed(1.0, 1.78));
+  CHECK(show_window_closed(0.0, 1.78));
+  // GTK does not support WND_PROP_VISIBLE (always -1): fall back to the aspect ratio,
+  // which is -1 after the window manager closes the window and NaN after destroyWindow.
+  CHECK_FALSE(show_window_closed(-1.0, 1.78));
+  CHECK(show_window_closed(-1.0, -1.0));
+  CHECK(show_window_closed(-1.0, nan));
+  CHECK(show_window_closed(-1.0, 0.0));
 }

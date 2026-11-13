@@ -93,4 +93,10 @@ Segment segment(double start_s, std::optional<double> duration_s, double fps, in
 
 const char* help_text();
 
+// --show window closed by the user? visible = getWindowProperty(WND_PROP_VISIBLE), aspect_ratio =
+// getWindowProperty(WND_PROP_ASPECT_RATIO). Backends that support visibility (Qt) report 1/0; GTK always
+// reports -1 for it, so then the window counts as closed when the aspect ratio is not positive (GTK gives
+// -1 after the window manager closes the window and NaN after destroyWindow).
+bool show_window_closed(double visible, double aspect_ratio);
+
 }  // namespace adasvp::example

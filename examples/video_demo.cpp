@@ -307,7 +307,8 @@ int run(const Options& o) {
       // getWindowProperty may throw when the window is already gone
       bool closed = false;
       try {
-        closed = cv::getWindowProperty(win, cv::WND_PROP_VISIBLE) < 1;
+        closed = show_window_closed(cv::getWindowProperty(win, cv::WND_PROP_VISIBLE),
+                                    cv::getWindowProperty(win, cv::WND_PROP_ASPECT_RATIO));
       } catch (const cv::Exception&) {
         closed = true;
       }

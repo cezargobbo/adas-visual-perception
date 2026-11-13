@@ -183,7 +183,7 @@ wall time of the Python prototype run, which includes model loading and shares t
 
 The per-video tables are in [tools/regression/README.md](../tools/regression/README.md).
 
-Tests: 74 of 74 passing in the last full run (`ctest`, none skipped), with the models, videos and traces present.
+Tests: 75 of 75 passing in the last full run (`ctest`, none skipped), with the models, videos and traces present.
 
 ## Replay tests and their traces
 
