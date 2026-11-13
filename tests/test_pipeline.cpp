@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <filesystem>
+#include <opencv2/imgproc.hpp>
 #include <opencv2/videoio.hpp>
 #include <string>
 
@@ -14,9 +15,8 @@ using namespace adasvp;
 TEST_CASE("Pipeline handles resolution change") {
   const char* dir = std::getenv("ADASVP_VIDEOS_DIR");
   if (!dir) SKIP("ADASVP_VIDEOS_DIR not set");
-  const fs::path a = fs::path(dir) / "sp1_crop_30fps.mp4";
-  const fs::path b = fs::path(dir) / "redlights" / "red_crop_9_30fps.mp4";
-  if (!fs::exists(a) || !fs::exists(b)) SKIP("test videos not found");
+  const fs::path v = fs::path(dir) / "sp1_crop_30fps.mp4";
+  if (!fs::exists(v)) SKIP("test video not found");
 
   Config cfg = Config::fast();
   cfg.models_dir = std::string(ADASVP_SOURCE_DIR) + "/models";
@@ -25,12 +25,14 @@ TEST_CASE("Pipeline handles resolution change") {
   Pipeline pipe(cfg);
 
   int total_objects = 0;
-  for (const fs::path& v : {a, b}) {
+  // Native 1920x1080, then the same frames resized to 854x474 (an odd, non-16:9 size) on the same Pipeline.
+  for (const cv::Size size : {cv::Size(), cv::Size(854, 474)}) {
     cv::VideoCapture cap(v.string());
     REQUIRE(cap.isOpened());
     cv::Mat frame;
     for (int i = 0; i < 30; ++i) {
       REQUIRE(cap.read(frame));
+      if (!size.empty()) cv::resize(frame, frame, size, 0, 0, cv::INTER_AREA);
       FrameResult r;
       REQUIRE_NOTHROW(r = pipe.process(frame, i / 30.0));
       REQUIRE(r.seg_classes.size() == frame.size());
