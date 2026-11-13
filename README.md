@@ -196,11 +196,24 @@ Seven clips (about 1 GB in total) go to `videos/` of the repository (whatever th
 
 ## Run
 
+See everything at once in a live window (segmentation, detections, lanes, lead vehicle and alerts):
+
+    build/native-release/examples/video_demo videos/sp1_crop_30fps.mp4 --show comb
+
+`--show` only displays (nothing is written). Keys: `q` / ESC quit, SPACE pause. The very first run builds the
+TensorRT engines before the window opens, which takes several minutes (see below). Other ways to run it:
+
+    # write the videos and the alerts CSV instead of showing them
     build/native-release/examples/video_demo videos/sp1_crop_30fps.mp4
+    # faster profile (SegFormer-B1 + YOLO26s), custom output prefix
     build/native-release/examples/video_demo videos/sp1_crop_30fps.mp4 -o outputs/sp1_fast --profile fast
+    # a 20 s segment, without segmentation
     build/native-release/examples/video_demo videos/sp1_crop_4_30fps.mp4 --start 140 --duration 20 --no-seg
+    # red-light running clip with a wider RLR zone
     build/native-release/examples/video_demo videos/redlights/red_crop_11_30fps.mp4 --rlr-zone 0.2 0.8
+    # live window with only the detections view (det, the default of --show) or only the segmentation (seg)
     build/native-release/examples/video_demo videos/sp1_crop_30fps.mp4 --profile fast --show
+    build/native-release/examples/video_demo videos/sp1_crop_30fps.mp4 --show seg
 
 Without `-o` the outputs go to `outputs/<video name>_*`: `_detections.mp4`, `_segmentation.mp4`,
 `_combined.mp4` and `_alerts.csv` (type, time, frame, level or side, time to collision, distance). Run it from the
