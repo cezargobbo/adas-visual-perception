@@ -132,8 +132,8 @@ and expects every pair identical. The tables, the procedure and the tools are in
 You need an NVIDIA GPU and its driver. Everything else (CUDA, TensorRT 10, OpenCV 4, ffmpeg) can come from one
 of two places, so pick one of the two builds below:
 
-- **[Native build](#native-build)**: install the dependencies on your machine and compile with CMake. This is
-  the fastest live `--show` window, and it runs the test suite.
+- **[Native build](#native-build)**: install the dependencies on your machine and compile with CMake. It has the
+  live `--show` window and runs the test suite.
 - **[Docker build](#docker-build)**: only Docker and the NVIDIA Container Toolkit on the host; the image
   carries the rest. The live `--show` window also works, on a local X display (Linux desktop).
 

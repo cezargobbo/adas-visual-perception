@@ -58,8 +58,8 @@ Run it with the wrapper, which mounts the models, the input video and the output
 - `--show [det|seg|comb]` opens the live window on the host's X server (**tested** on the machine above, GNOME on
   X11). The wrapper needs a local `DISPLAY` (`:0`, `:1`, ...; on Wayland desktops XWayland provides one) and
   mounts the X11 socket `/tmp/.X11-unix` read-only, plus `$XAUTHORITY` when it is set (then the container gets
-  the host's host name, because the X cookies are keyed by it). The window is drawn by the image's OpenCV (Qt5)
-  without OpenGL. Nothing is written with `--show`, so no output folder is created. A remote `DISPLAY` (for
+  the host's host name, because the X cookies are keyed by it). The window is drawn by the image's OpenCV (4.6,
+  Qt5) without OpenGL, at about the speed of a native build with the same OpenCV (step 5 of section 2). Nothing is written with `--show`, so no output folder is created. A remote `DISPLAY` (for
   example `localhost:10.0` from `ssh -X`) is rejected with exit 2: run `video_demo` natively there. Sharing the
   display lets the container talk to your X server, as any X client can.
 - Output paths (`-o` and `--adas-debug`) are translated and their folders are created on the host.
@@ -77,8 +77,9 @@ Run it with the wrapper, which mounts the models, the input video and the output
 ## 2. Native build on Ubuntu 24.04
 
 This is the author's machine: Ubuntu 24.04.5, driver 580.178.04 (`nvidia-driver-580`), CUDA toolkit 12.9.1,
-TensorRT 10.16.1.11, OpenCV 4.6.0, CMake 3.28.3. It uses the CUDA toolkit and
-TensorRT packages from NVIDIA's apt repository for Ubuntu 24.04.
+TensorRT 10.16.1.11, CMake 3.28.3, and two OpenCV installs: Ubuntu's 4.6.0 (`libopencv-dev`, Qt5 window) and a
+locally built 4.10.0 in `/usr/local` (GTK3 window), which CMake picks first and which the tested builds use
+(see step 5). It uses the CUDA toolkit and TensorRT packages from NVIDIA's apt repository for Ubuntu 24.04.
 
 1. **Driver.** Install the driver from Ubuntu and reboot, then check it:
 
@@ -110,6 +111,18 @@ TensorRT packages from NVIDIA's apt repository for Ubuntu 24.04.
        sudo apt install build-essential cmake git ffmpeg libopencv-dev
 
    CLI11 is fetched by CMake if it is not installed; `sudo apt install libcli11-dev` avoids the download.
+
+   **OpenCV and the `--show` window.** The live window needs OpenCV's `highgui` with a GUI backend; GTK and Qt
+   both work. Ubuntu's `libopencv-dev` (4.6.0) has a Qt5 window (**tested**: `video_demo --show comb` built
+   against it). If you also have an OpenCV of your own in `/usr/local`, CMake uses that one instead. Check which
+   one a build uses, and its window backend:
+
+       grep OpenCV_DIR build/native-release/CMakeCache.txt
+       opencv_version --verbose | grep -A1 "GUI:"     # the opencv_version of that install
+
+   To force Ubuntu's, configure with `-DOpenCV_DIR=/usr/lib/x86_64-linux-gnu/cmake/opencv4` (delete
+   `build/native-release` first). On the author's machine the window drew faster with the local 4.10 GTK build
+   (about 1.5 ms to draw and 3 ms to show per frame) than with Ubuntu's 4.6 Qt build (about 5 ms and 6.5 ms).
 
 6. **Build** (**tested**: configure, build and `ctest` with the packages above; 75/75 tests passed, none skipped, with models and videos present and `ADASVP_VIDEOS_DIR` set):
 
