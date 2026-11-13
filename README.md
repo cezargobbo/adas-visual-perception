@@ -127,12 +127,20 @@ the C++ output itself (`tests/regression/golden/`): `tools/regression/run_cpp_re
 and expects every pair identical. The tables, the procedure and the tools are in
 [docs/regression.md](docs/regression.md) and [tools/regression/README.md](tools/regression/README.md).
 
-## Requirements
+## Requirements: native or Docker
 
-An NVIDIA GPU with a driver, CUDA, TensorRT 10, OpenCV 4 and ffmpeg, either from the Docker image or from a
-native install. See [docs/install.md](docs/install.md).
+You need an NVIDIA GPU and its driver. Everything else (CUDA, TensorRT 10, OpenCV 4, ffmpeg) can come from one
+of two places, so pick one of the two builds below:
 
-## Build
+- **[Native build](#native-build)**: install the dependencies on your machine and compile with CMake. This is
+  the only way to get the live `--show` window, and it runs the test suite.
+- **[Docker build](#docker-build)**: only Docker and the NVIDIA Container Toolkit on the host; the image
+  carries the rest. It writes the output videos and the alerts CSV but has no live window (`--show`).
+
+Both use the same `models/` and `videos/` folders, downloaded in [Get the models](#get-the-models) and
+[Get the test videos](#get-the-test-videos). Step-by-step setup for each: [docs/install.md](docs/install.md).
+
+## Native build
 
 Dependencies: CUDA toolkit 12.x or newer with `nvcc`, TensorRT 10, OpenCV 4 and CMake 3.24 or newer. The tests
 fetch Catch2 (and nlohmann_json when it is not installed) with CMake FetchContent, and configuring the examples
@@ -167,8 +175,27 @@ tests. The trace-replay and renderer-comparison tests also need gitignored trace
 missing (how to make them: [tools/regression/README.md](tools/regression/README.md)). The Python tool tests run
 with `.venv/bin/python -m pytest tests -q`.
 
-A Docker image with the toolchain is described in [docs/install.md](docs/install.md); `scripts/video_demo_docker.sh`
-runs `video_demo` in it.
+## Docker build
+
+On the host you need the NVIDIA driver (580 series or newer, for the CUDA 13.0 of the base image) and the
+[NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
+Check that containers see the GPU, then build the image (about 11 GB, based on
+`nvcr.io/nvidia/tensorrt:25.11-py3`):
+
+    docker run --rm --gpus all nvcr.io/nvidia/tensorrt:25.11-py3 nvidia-smi
+    docker build -t adas-visual-perception .
+    docker run --rm --gpus all adas-visual-perception video_demo --help
+
+After [getting the models](#get-the-models) and [the test videos](#get-the-test-videos), run it with
+`scripts/video_demo_docker.sh`, which takes the same options as `video_demo` (written as `--option value`) and
+mounts the models, the input
+video and the output folder for you:
+
+    scripts/video_demo_docker.sh videos/sp1_crop_30fps.mp4
+
+The outputs go to `outputs/<video name>_*` as in the native build, and the TensorRT engines are cached on the
+host in `${XDG_CACHE_HOME:-$HOME/.cache}/adasvp`. `--show` is rejected (the container has no display). Details,
+options and troubleshooting: [docs/install.md, section 1](docs/install.md#1-docker).
 
 ## Get the models
 
@@ -214,6 +241,9 @@ TensorRT engines before the window opens, which takes several minutes (see below
     # live window with only the detections view (det, the default of --show) or only the segmentation (seg)
     build/native-release/examples/video_demo videos/sp1_crop_30fps.mp4 --profile fast --show
     build/native-release/examples/video_demo videos/sp1_crop_30fps.mp4 --show seg
+
+With the [Docker build](#docker-build), use `scripts/video_demo_docker.sh` in place of
+`build/native-release/examples/video_demo` with the same options, except `--show`.
 
 Without `-o` the outputs go to `outputs/<video name>_*`: `_detections.mp4`, `_segmentation.mp4`,
 `_combined.mp4` and `_alerts.csv` (type, time, frame, level or side, time to collision, distance). Run it from the
