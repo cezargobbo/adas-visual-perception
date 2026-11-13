@@ -3,6 +3,9 @@
 # Usage: scripts/video_demo_docker.sh INPUT.mp4 [-o PREFIX] [video_demo options...]
 # Without -o the outputs go to outputs/<input name> in the current directory (like the native video_demo).
 #
+# --show opens the live window on the host's X server (a local DISPLAY such as :0 or :1; with Wayland this
+# is XWayland): the X11 socket and, if set, $XAUTHORITY are mounted read-only. Nothing is written then.
+#
 # Mounted read-only: the repository (/work/repo), models/ (/work/models), the input video's directory.
 # Mounted read-write: the directory of the -o prefix and the engine cache (/cache/adasvp).
 # Environment: ADASVP_DOCKER_IMAGE (default adas-visual-perception),
@@ -13,6 +16,7 @@ ROOT=$(cd "${BASH_SOURCE[0]%/*}/.." && pwd)
 IMAGE=${ADASVP_DOCKER_IMAGE:-adas-visual-perception}
 GPU_FLAGS=${ADASVP_DOCKER_GPU_FLAGS---gpus all}
 CACHE_DIR=${XDG_CACHE_HOME:-$HOME/.cache}/adasvp
+X11_DIR=${ADASVP_X11_DIR:-/tmp/.X11-unix}
 
 abspath() { # abspath PATH -> absolute path (no symlink resolution of the last component)
   case $1 in
@@ -23,7 +27,7 @@ abspath() { # abspath PATH -> absolute path (no symlink resolution of the last c
 
 # Options that take one value (tests/tools/test_docker_wrapper.py checks this list against examples/cli.cpp).
 # Special cases handled below: -o/--out-prefix and --adas-debug (output paths, translated), --rlr-zone
-# (two values), --show (rejected: no display in the container), --models-dir (rejected: set by the wrapper).
+# (two values), --show (optional view; mounts the X11 socket), --models-dir (rejected: set by the wrapper).
 VALUE_OPTS=" --start --duration --encoder --profile --show-width --seg-model --seg-size
  --seg-every --seg-alpha --det-model --det-imgsz --conf --hfov --cam-height --horizon --corridor-bottom
  --corridor-top --lanes-thr --lanes-hold --fcw-ttc --fcw-ttc-critical --ldw-margin --ldw-car-width
@@ -37,15 +41,18 @@ host_outdir() {
   printf '%s\n' "$d"
 }
 
-args=() input="" outdir="" dbgdir="" positional_only=0
+args=() input="" outdir="" dbgdir="" show=0 positional_only=0
 while [ $# -gt 0 ]; do
   if [ $positional_only -eq 0 ]; then
     case $1 in
       --) positional_only=1; shift; continue ;;
       --models-dir|--models-dir=*)
         echo "error: --models-dir is set by this wrapper (models/ is mounted at /work/models)" >&2; exit 2 ;;
-      --show|--show=*)
-        echo "error: --show is not supported through Docker; run video_demo natively" >&2; exit 2 ;;
+      --show)
+        show=1
+        args+=("$1"); shift
+        case ${1:-} in det|seg|comb) args+=("$1"); shift ;; esac
+        continue ;;
       --*=*)
         echo "error: write '$1' as two words (OPTION VALUE); the wrapper translates paths word by word" >&2; exit 2 ;;
       -o|--out-prefix)
@@ -83,8 +90,8 @@ while [ $# -gt 0 ]; do
 done
 
 # No -o given: mirror the native default (outputs/<input stem> under the current directory), because the
-# container's /work is not writable.
-if [ -n "$input" ] && [ -z "$outdir" ]; then
+# container's /work is not writable. With --show nothing is written, so no output folder is needed.
+if [ -n "$input" ] && [ -z "$outdir" ] && [ $show -eq 0 ]; then
   base=${input##*/}
   p="$PWD/outputs/${base%.*}"
   outdir=$(host_outdir "$p")
@@ -92,6 +99,26 @@ if [ -n "$input" ] && [ -z "$outdir" ]; then
 fi
 
 command -v docker >/dev/null 2>&1 || { echo "error: docker not found in PATH" >&2; exit 2; }
+
+x11=()
+if [ $show -eq 1 ]; then
+  [ -n "${DISPLAY:-}" ] || { echo "error: --show needs a display, but DISPLAY is not set" >&2; exit 2; }
+  if [[ ! $DISPLAY =~ ^:([0-9]+)(\.[0-9]+)?$ ]]; then
+    echo "error: --show through Docker needs a local display such as :0 (DISPLAY=$DISPLAY); run video_demo natively" >&2
+    exit 2
+  fi
+  [ -e "$X11_DIR/X${BASH_REMATCH[1]}" ] || { echo "error: no X11 socket $X11_DIR/X${BASH_REMATCH[1]} for DISPLAY=$DISPLAY" >&2; exit 2; }
+  # QT_X11_NO_MITSHM: no shared memory with the host X server; QT_XCB_GL_INTEGRATION=none: plain X11 drawing,
+  # no GLX (the image has no host GL driver); XDG_RUNTIME_DIR: a private runtime dir Qt is happy with.
+  x11+=(-e "DISPLAY=$DISPLAY" -e QT_X11_NO_MITSHM=1 -e QT_XCB_GL_INTEGRATION=none
+        -e XDG_RUNTIME_DIR=/tmp/xdg-runtime --tmpfs "/tmp/xdg-runtime:uid=$(id -u),gid=$(id -g),mode=0700"
+        --mount "type=bind,src=$X11_DIR,dst=/tmp/.X11-unix,readonly")
+  if [ -n "${XAUTHORITY:-}" ] && [ -f "$XAUTHORITY" ]; then
+    # the cookies are keyed by host name, so the container uses the host's
+    x11+=(--hostname "$(hostname)" -e XAUTHORITY=/tmp/.Xauthority
+          --mount "type=bind,src=$XAUTHORITY,dst=/tmp/.Xauthority,readonly")
+  fi
+fi
 mkdir -p "$CACHE_DIR"
 
 run=(docker run --rm --init)
@@ -102,6 +129,7 @@ run+=(--user "$(id -u):$(id -g)"
       --mount "type=bind,src=$ROOT,dst=/work/repo,readonly"
       --mount "type=bind,src=$ROOT/models,dst=/work/models,readonly"
       --mount "type=bind,src=$CACHE_DIR,dst=/cache/adasvp")
+run+=("${x11[@]}")
 [ -n "$input" ] && run+=(--mount "type=bind,src=${input%/*},dst=/in,readonly")
 [ -n "$outdir" ] && run+=(--mount "type=bind,src=$outdir,dst=/out")
 [ -n "$dbgdir" ] && run+=(--mount "type=bind,src=$dbgdir,dst=/dbg")

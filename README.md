@@ -133,9 +133,9 @@ You need an NVIDIA GPU and its driver. Everything else (CUDA, TensorRT 10, OpenC
 of two places, so pick one of the two builds below:
 
 - **[Native build](#native-build)**: install the dependencies on your machine and compile with CMake. This is
-  the only way to get the live `--show` window, and it runs the test suite.
+  the fastest live `--show` window, and it runs the test suite.
 - **[Docker build](#docker-build)**: only Docker and the NVIDIA Container Toolkit on the host; the image
-  carries the rest. It writes the output videos and the alerts CSV but has no live window (`--show`).
+  carries the rest. The live `--show` window also works, on a local X display (Linux desktop).
 
 Both use the same `models/` and `videos/` folders, downloaded in [Get the models](#get-the-models) and
 [Get the test videos](#get-the-test-videos). Step-by-step setup for each: [docs/install.md](docs/install.md).
@@ -194,8 +194,12 @@ video and the output folder for you:
     scripts/video_demo_docker.sh videos/sp1_crop_30fps.mp4
 
 The outputs go to `outputs/<video name>_*` as in the native build, and the TensorRT engines are cached on the
-host in `${XDG_CACHE_HOME:-$HOME/.cache}/adasvp`. `--show` is rejected (the container has no display). Details,
-options and troubleshooting: [docs/install.md, section 1](docs/install.md#1-docker).
+host in `${XDG_CACHE_HOME:-$HOME/.cache}/adasvp`. The live window works too: the wrapper shares the host's X
+display with the container (a local `DISPLAY` such as `:0`; on Wayland desktops this is XWayland):
+
+    scripts/video_demo_docker.sh videos/sp1_crop_30fps.mp4 --show comb
+
+Details, options and troubleshooting: [docs/install.md, section 1](docs/install.md#1-docker).
 
 ## Get the models
 
@@ -243,7 +247,7 @@ TensorRT engines before the window opens, which takes several minutes (see below
     build/native-release/examples/video_demo videos/sp1_crop_30fps.mp4 --show seg
 
 With the [Docker build](#docker-build), use `scripts/video_demo_docker.sh` in place of
-`build/native-release/examples/video_demo` with the same options, except `--show`.
+`build/native-release/examples/video_demo` with the same options.
 
 Without `-o` the outputs go to `outputs/<video name>_*`: `_detections.mp4`, `_segmentation.mp4`,
 `_combined.mp4` and `_alerts.csv` (type, time, frame, level or side, time to collision, distance). Run it from the

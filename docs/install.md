@@ -55,8 +55,13 @@ Run it with the wrapper, which mounts the models, the input video and the output
 
 - Write options as `--option value` (not `--option=value`), so the wrapper can translate paths. Put the
   video before `--` if its name starts with a dash (`... -- -clip.mp4`).
-- `--show` is not supported through Docker (the container has no display): run `video_demo` natively for
-  the live view. The wrapper rejects it with exit 2.
+- `--show [det|seg|comb]` opens the live window on the host's X server (**tested** on the machine above, GNOME on
+  X11). The wrapper needs a local `DISPLAY` (`:0`, `:1`, ...; on Wayland desktops XWayland provides one) and
+  mounts the X11 socket `/tmp/.X11-unix` read-only, plus `$XAUTHORITY` when it is set (then the container gets
+  the host's host name, because the X cookies are keyed by it). The window is drawn by the image's OpenCV (Qt5)
+  without OpenGL. Nothing is written with `--show`, so no output folder is created. A remote `DISPLAY` (for
+  example `localhost:10.0` from `ssh -X`) is rejected with exit 2: run `video_demo` natively there. Sharing the
+  display lets the container talk to your X server, as any X client can.
 - Output paths (`-o` and `--adas-debug`) are translated and their folders are created on the host.
   `--det-model` and `--seg-model` are not translated: through the wrapper they accept only file names that
   are in `models/` (for example `--det-model yolo26x.onnx`), not host paths.
@@ -194,4 +199,5 @@ about ten) and is cached afterwards.
 | Models not found | Run `scripts/download_models.sh` (or `--profile fast`) from the repository root, or point to them with `--models-dir DIR`. The Docker wrapper mounts `models/` of the repository. |
 | ffmpeg 3.4 rejects a `p1`-`p7` NVENC preset | That ffmpeg only knows the legacy preset names. `video_demo` already uses `-preset medium`, which it accepts. If you run your own ffmpeg command, use `medium` (or `slow`, `fast`, `hq`) instead of `p1`-`p7`, or encode with `--encoder x264`. |
 | `nvidia-smi` works but TensorRT says the CUDA driver is insufficient | The driver is older than the CUDA the TensorRT packages target. Use a TensorRT build for an older CUDA (Docker: a base image tag your driver supports) or update the driver. |
+| `--show` through Docker: `qt.qpa.xcb: could not connect to display` or `Authorization required` | The container cannot reach your X server. Check that `DISPLAY` is local (`echo $DISPLAY` gives `:0` or `:1`) and that `/tmp/.X11-unix/X<N>` exists. If your X server uses cookies only, make sure `XAUTHORITY` points to the file (`xauth info`); as a last resort `xhost +SI:localuser:$(whoami)` allows your user without a cookie. |
 | `docker run` fails with a permission error on `outputs/` | The container runs as your user (`--user`). Make sure the output folder is yours, or let the wrapper create it. |
