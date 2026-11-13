@@ -194,7 +194,16 @@ video and the output folder for you:
     scripts/video_demo_docker.sh videos/sp1_crop_30fps.mp4
 
 The outputs go to `outputs/<video name>_*` as in the native build, and the TensorRT engines are cached on the
-host in `${XDG_CACHE_HOME:-$HOME/.cache}/adasvp`. The live window works too: the wrapper shares the host's X
+host in `${XDG_CACHE_HOME:-$HOME/.cache}/adasvp`.
+
+**The first runs in Docker are slow, even if the native build already ran.** The image has TensorRT 10.14 and
+the native build usually a different version (10.16 on the author's machine), and a TensorRT engine only works
+with the version that built it. So the container builds its own engines the first time each model is used:
+a few minutes per model, about 10 minutes for the YOLO26x of the default `accurate` profile (see
+[Run](#run)). They are cached next to the native ones without replacing them, so later runs in both start
+in seconds.
+
+The live window works too: the wrapper shares the host's X
 display with the container (a local `DISPLAY` such as `:0`; on Wayland desktops this is XWayland):
 
     scripts/video_demo_docker.sh videos/sp1_crop_30fps.mp4 --show comb
@@ -256,8 +265,13 @@ repository root, or pass `--models-dir`. If a model is missing, it stops with
 
 The first run with a model is slow: `video_demo` prints
 `[adasvp] building TensorRT engine for <model> (first run only, may take several minutes)` and builds the
-TensorRT engine, which takes minutes (about 10 minutes for the fp16 YOLO26x engine). The engine is cached, so
-later runs start quickly.
+TensorRT engine, which takes minutes (about 10 minutes for the fp16 YOLO26x engine). Why: the models ship as
+ONNX files, and TensorRT compiles each one into an engine optimized for your GPU, your TensorRT version and
+the precision (fp16 or fp32). An engine built elsewhere cannot be shipped or reused, so it is built on your
+machine. Each profile uses different models, so the first `--profile fast` run and the first `accurate` run
+each build their own. The engines are cached in `${XDG_CACHE_HOME:-$HOME/.cache}/adasvp/engines`, so later runs
+start in seconds. A new engine is built when the GPU, the TensorRT version, the precision or the model file
+changes (the engine file name records them).
 
 `-h` prints the full help, with the same options and more examples. Every option:
 
